@@ -71,8 +71,8 @@
         <div class="felt" id="live-felt"><div class="felt-arc" aria-hidden="true"></div><div class="felt-caption" aria-hidden="true"><span>♠</span><small>BLACKJACK PAYS 3 TO 2</small></div><div class="dealer" id="live-dealer"></div><div class="seats" id="live-seats"></div></div>
       </section>
       <aside class="panel" aria-labelledby="live-forecast-title">
-        <div class="panel-head"><div><p class="eyebrow">ALL SEATS</p><h2 id="live-forecast-title">全部座位牌面推算</h2></div></div>
-        <div class="analysis-body"><p id="live-forecast-note" class="model-note">下一张未知牌的分布，以及各手再抽一张时爆牌的概率。</p><div id="live-forecasts" class="live-forecasts"></div>
+        <div class="panel-head"><div><p class="eyebrow">HIT OR STAND</p><h2 id="live-forecast-title">各座位行动建议</h2></div></div>
+        <div class="analysis-body"><p id="live-forecast-note" class="model-note">用已记录的牌近似比较要牌和停牌。</p><div id="live-forecasts" class="live-forecasts"></div>
           <h3 class="live-subhead" id="live-distribution-label">下一张牌分布</h3><div id="live-distribution" class="live-distribution" aria-labelledby="live-distribution-label"></div>
           <h3 class="live-subhead">预测回测</h3><dl class="live-timings"><div><dt>已评分的新牌</dt><dd id="live-evaluated">0</dd></div><div><dt>最高概率牌面命中</dt><dd id="live-accuracy">—</dd></div><div><dt>对数损失／Brier 分数</dt><dd id="live-score">—</dd></div></dl><p class="model-note">开场快照和补记旧牌只计入牌靴。回测比较牌面出现前已算出的分布。</p>
           <h3 class="live-subhead">学习校准 · 实验</h3><div id="live-learned-distribution" class="live-distribution"></div><dl class="live-timings live-learning-metrics"><div><dt>当前模式已学习</dt><dd id="live-learning-updates">0 张</dd></div><div><dt>当前模式对数损失（学习／基准）</dt><dd id="live-learning-score">—</dd></div></dl><p class="model-note">完整牌靴与中途入桌分别校准。分数越低越好，少量样本会波动。</p><p class="model-note" id="live-storage-note">牌靴记录和学习模型保存在本机。</p>

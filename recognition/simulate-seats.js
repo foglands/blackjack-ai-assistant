@@ -232,6 +232,43 @@ function runSpecialCases() {
   return { unreadPredecessor: true, explicitEmptyReopen: true, gapRejectsPending: true, affineAnchorWithLocalDrift: true };
 }
 
+function runRankOrientationCases() {
+  const width = 160, height = 120;
+  const six = live.forCloseCapture(profile).templates['6'][0];
+  const nine = six.slice().reverse().map(row => {
+    let rotated = 0;
+    for (let bit = 0; bit < 16; bit++) rotated = (rotated << 1) | ((row >>> bit) & 1);
+    return rotated;
+  });
+  const templates = { 6: [six], 9: [nine] };
+
+  function read(rank, reverseCard, flip, guardRotatedRanks) {
+    const detector = engine.create({
+      width, height, templates,
+      liveSearch: { offsets: [], relocate: true, guardRotatedRanks },
+      slots: [{ seat: 1, slot: 1, x: 80, y: 60, w: 29, h: 26, u: 0, v: 0, flip }],
+    });
+    const data = new Uint8Array(width * height).fill(50);
+    const [left, right] = reverseCard ? [38, 90] : [70, 122];
+    for (let y = 43; y <= 77; y++) data.fill(240, y * width + left, y * width + right + 1);
+    const rows = templates[reverseCard ? (rank === '6' ? '9' : '6') : rank][0];
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 16; x++) {
+      if (rows[y] & (1 << (15 - x))) data[(y + 51) * width + x + 73] = 20;
+    }
+    return [0, 0.05, 0.1, 0.15, 0.2, 0.25]
+      .flatMap(time => detector.read({ width, height, data, channels: 1 }, time).events.map(event => event.rank));
+  }
+
+  assert.deepEqual(read('6', true, false, false), ['9'], 'The opposite index looks like 9 without orientation evidence');
+  assert.deepEqual(read('9', true, false, false), ['6'], 'The opposite index looks like 6 without orientation evidence');
+  for (const rank of ['6', '9']) {
+    assert.deepEqual(read(rank, false, false, true), [rank], 'The leading index remains readable');
+    assert.deepEqual(read(rank, true, true, true), [rank], 'A correctly flipped opposite index remains readable');
+    assert.deepEqual(read(rank, true, false, true), [], 'A wrong orientation must not write a different rank');
+  }
+  return { rotatedSixAndNine: true };
+}
+
 function runUndoCases() {
   const record = (events, state = observer.create()) => events.reduce(observer.apply, state);
   const undo = state => observer.apply(state, { type: 'undo' });
@@ -265,11 +302,42 @@ function runUndoCases() {
   return { dependentSplitUndo: true, rankCapacityUndo: true };
 }
 
+function runAdviceCases() {
+  const card = (seat, slot, rank, hand = 0) => ({ type: 'card', seat, slot, rank, hand });
+  const add = (state, ...events) => events.reduce(observer.apply, state);
+  const hand = (state, index = 0) => observer.forecast(state).seats[0].hands[index];
+  const deal = (up, first, second) => add(observer.create(), card(0, 1, up), card(1, 1, first), card(1, 2, second));
+  for (const [up, first, second, action] of [
+    ['10', 'K', '6', 'hit'], ['6', 'K', '6', 'stand'],
+    ['9', 'A', '7', 'hit'], ['6', 'A', '7', 'stand'],
+  ]) assert.equal(hand(deal(up, first, second)).advice.action, action);
+
+  const open = deal('6', '8', '8');
+  assert.equal(hand(add(open, { type: 'status', seat: 1, status: 'stood' })).advice, null);
+  assert.equal(hand(add(open, card(0, 3, '5'))).advice, null, 'An observed dealer hit closes the player decisions');
+  assert.equal(hand(add(open, card(0, 2, '10'))).advice, null);
+  assert.equal(hand(add(deal('A', '8', '8'), { type: 'peek', value: 'blackjack' })).advice, null);
+  assert.equal(hand(deal('6', 'A', '10')).advice, null);
+  const gap = add(observer.create(), card(0, 1, '6'), card(1, 1, '8'), card(1, 3, '8'));
+  assert.equal(hand(gap).advice, null, 'A visible hit cannot stand in for a missing opening card');
+  assert.ok(hand(add(gap, card(1, 2, '2'))).advice, 'Manual correction unlocks the decision');
+
+  const split = add(open, { type: 'split', seat: 1 }, card(1, 2, '2'), card(1, 2, '10', 1));
+  assert.equal(hand(split).advice.action, 'hit');
+  assert.equal(hand(split, 1).advice.action, 'stand');
+  const splitAces = add(deal('6', 'A', 'A'), { type: 'split', seat: 1 }, card(1, 2, '2'), card(1, 2, '3', 1));
+  assert.equal(hand(splitAces).advice, null);
+  assert.equal(hand(splitAces, 1).advice, null);
+  return { hardAndSoft: true, phaseAndMissingCards: true, splitHands: true };
+}
+
 const occupancy = runOccupancy();
 console.log(JSON.stringify({ occupancy }, null, 2));
 assert.equal(occupancy.missed + occupancy.falsePositives + occupancy.duplicates + occupancy.openingMismatches + occupancy.unreadOpenings, 0);
 console.log(JSON.stringify({ specialCases: runSpecialCases() }, null, 2));
+console.log(JSON.stringify({ rankOrientation: runRankOrientationCases() }, null, 2));
 console.log(JSON.stringify({ undoCases: runUndoCases() }, null, 2));
+console.log(JSON.stringify({ adviceCases: runAdviceCases() }, null, 2));
 const varied = runOccupancy(true);
 const { failures, ...stress } = varied;
 console.log(JSON.stringify({ variedRankStress: stress }, null, 2));

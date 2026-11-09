@@ -182,6 +182,13 @@
           x: x * scaleX, y: y * scaleY, w, h, u, v, inkCeiling, flip, minBright: 0.37, minMargin: 0.085,
           fixedView: flip,
         }))];
+        if (seat === 1 && slot === 1) {
+          // The far rank can remain visible while the dealer's hand covers the
+          // leading corner. Keep its search window away from the second card.
+          variants.push({ x: 1709 * scaleX, y: 948 * scaleY, w: 34, h: 30, u: -0.35, v: 1.90,
+            flip: true, inkCeiling: 145, minBright: 0.38, minScore: 0.84, minMargin: 0.11,
+            fixedView: true, recoveryOnly: true });
+        }
         if (seat === 0 && slot === 3) {
           variants.push({ ...pair, x: 1244 * scaleX, y: 806 * scaleY, w: 38, h: 20,
             inkCeiling: 160, minBright: 0.32, minPairedScore: 0.81, fixedView: true });
@@ -195,7 +202,8 @@
     // The opposite corner can keep both digits readable after the hit cards overlap.
     const oppositeTen = [63488, 63736, 63736, 31230, 15238, 15239, 15239, 15239, 15235, 15111,
       15111, 15111, 15111, 15239, 15239, 29447, 15239, 14798, 14798, 252];
-    return { ...close, slots, templates: { ...close.templates, 10: [...close.templates['10'], oppositeTen] } };
+    return { ...close, slots, templates: { ...close.templates, 10: [...close.templates['10'], oppositeTen] },
+      liveSearch: { ...close.liveSearch, guardRotatedRanks: true } };
   }
 
   const api = { fromReplay, forCapture, forCloseCapture, forFrontCapture };

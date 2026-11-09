@@ -45,27 +45,29 @@
     return up === 1 ? 10 : up === 10 ? 1 : 0;
   }
 
-  function baselinePolicy(up) {
-    if (baselinePolicies.has(up)) return baselinePolicies.get(up);
-
-    // Future hit/stand decisions use a fixed S17 policy for an infinite shoe.
-    // A natural blackjack at the dealer is a loss for both moves, so that
-    // branch cannot change their ranking and can be omitted here.
+  function hitStandTable(up, draws, holes) {
     const dealerTotals = new Float64Array(23);
-    const natural = blackjackHole(up);
-    const allowed = 13 - (natural === 10 ? 4 : Number(natural !== 0));
-    function dealer(hard, ace, probability) {
-      const total = score(hard, ace);
-      if (!mustHitDealer(hard, ace)) {
-        dealerTotals[Math.min(total, 22)] += probability;
-        return;
-      }
-      for (let rank = 1; rank <= 10; rank++) {
-        dealer(hard + rank, ace || rank === 1, probability * (rank === 10 ? 4 : 1) / 13);
-      }
-    }
+    const pending = new Float64Array(44);
     for (let rank = 1; rank <= 10; rank++) {
-      if (rank !== natural) dealer(up + rank, up === 1 || rank === 1, (rank === 10 ? 4 : 1) / allowed);
+      pending[(up + rank) * 2 + Number(up === 1 || rank === 1)] += holes[rank - 1];
+    }
+    // Every draw increases the hard sum. Accumulate each reachable dealer
+    // state once, including hands that demote an ace from eleven to one.
+    for (let hard = 2; hard <= 21; hard++) {
+      for (let ace = 0; ace <= 1; ace++) {
+        const probability = pending[hard * 2 + ace];
+        if (!probability) continue;
+        if (!mustHitDealer(hard, ace)) {
+          dealerTotals[score(hard, ace)] += probability;
+          continue;
+        }
+        for (let rank = 1; rank <= 10; rank++) {
+          const next = hard + rank;
+          const mass = probability * draws[rank - 1];
+          if (next > 21) dealerTotals[22] += mass;
+          else pending[next * 2 + Number(ace || rank === 1)] += mass;
+        }
+      }
     }
 
     const stand = new Float64Array(22);
@@ -77,7 +79,8 @@
     }
 
     const optimal = new Float64Array(44);
-    const hit = new Uint8Array(44);
+    const hit = new Float64Array(44);
+    const policy = new Uint8Array(44);
     for (let hard = 21; hard >= 0; hard--) {
       for (let ace = 0; ace <= 1; ace++) {
         const key = hard * 2 + ace;
@@ -90,15 +93,50 @@
         for (let rank = 1; rank <= 10; rank++) {
           const next = hard + rank;
           const nextKey = next * 2 + Number(ace || rank === 1);
-          hitReturn += (rank === 10 ? 4 : 1) * (next > 21 ? -1 : optimal[nextKey]) / 13;
+          hitReturn += draws[rank - 1] * (next > 21 ? -1 : optimal[nextKey]);
         }
-        hit[key] = Number(hitReturn > stand[total]);
+        hit[key] = hitReturn;
+        policy[key] = Number(hitReturn > stand[total]);
         optimal[key] = Math.max(hitReturn, stand[total]);
       }
     }
+    return { stand, hit, policy };
+  }
 
-    baselinePolicies.set(up, hit);
-    return hit;
+  function holeDistribution(up, counts) {
+    // Dealer blackjack has the same outcome for hit and stand. Compare the
+    // two decisions on the remaining branches, where a choice matters.
+    const natural = blackjackHole(up);
+    const eligible = counts.map((count, index) => index + 1 === natural ? 0 : count);
+    const size = eligible.reduce((sum, count) => sum + count, 0);
+    return size ? eligible.map(count => count / size) : null;
+  }
+
+  function baselinePolicy(up) {
+    if (!baselinePolicies.has(up)) {
+      const counts = [1, 1, 1, 1, 1, 1, 1, 1, 1, 4];
+      baselinePolicies.set(up, hitStandTable(up, counts.map(count => count / 13), holeDistribution(up, counts)).policy);
+    }
+    return baselinePolicies.get(up);
+  }
+
+  function hitStandPolicy(dealerUp, counts) {
+    const up = rankValue(dealerUp);
+    const size = counts.reduce((sum, count) => sum + count, 0);
+    const holes = holeDistribution(up, counts);
+    if (size < 2 || !holes) return null;
+    // Reserve the expected hidden card. Use the resulting composition as a
+    // fixed distribution for future draws so all seats share one fast table.
+    const draws = counts.map((count, index) => (count - holes[index]) / (size - 1));
+    const table = hitStandTable(up, draws, holes);
+    return cards => {
+      const { hard, ace } = handState(cards);
+      const total = score(hard, ace);
+      if (cards.length < 2 || total >= 21) return null;
+      const key = hard * 2 + Number(ace);
+      const difference = table.hit[key] - table.stand[total];
+      return { action: difference > 1e-12 ? 'hit' : 'stand', difference };
+    };
   }
 
   function randomGenerator(seed) {
@@ -249,7 +287,7 @@
     return { rows, trials: trialCount, dealerBlackjackPossible: dealerBlackjackProbability > 0, dealerBlackjackProbability };
   }
 
-  const engine = { availableActions, evaluate, value };
+  const engine = { availableActions, evaluate, value, hitStandPolicy };
   if (typeof module === 'object' && module.exports) module.exports = engine;
   else root.BlackjackEngine = engine;
 }(globalThis));

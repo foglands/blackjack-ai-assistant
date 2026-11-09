@@ -551,19 +551,38 @@
   function paintForecast() {
     const targetName = target.seat ? `${seatName(target.seat)} · 手 ${target.hand + 1}` : '庄家';
     setText('live-distribution-label', target.seat === 0 && target.slot === 2 ? '庄家底牌分布' : `${targetName} · 下一张分布`);
-    $('live-forecasts').innerHTML = projection.seats.map(seat => {
-      const details = seat.hands.map(hand => hand.cards.length
-        ? `${handLabel(hand)}${Number.isFinite(hand.bustProbability) ? ` · 再抽爆牌 ${percent(hand.bustProbability)}` : ''}` : '—');
-      return `<div class="live-forecast-row${seat.isMine ? ' is-mine' : ''}"><strong>${seatName(seat.seat)}${seat.isMine ? ' · 关注' : ''}</strong><small>${details.join(' / ')}</small></div>`;
+    const list = $('live-forecasts');
+    const focused = document.activeElement?.dataset?.liveAdviceSeat;
+    list.innerHTML = projection.seats.map(seat => {
+      const details = seat.hands.map(hand => {
+        let decision = '';
+        if (hand.advice) {
+          const { action, difference } = hand.advice;
+          decision = `<b class="live-action-advice" data-action="${action}">建议${action === 'hit' ? '要牌' : '停牌'}</b>${Math.abs(difference) < 0.01 ? '<span>两种结果接近</span>' : ''}`;
+        } else if (hand.cards.length && hand.incomplete && hand.status === 'playing') {
+          decision = '<span>等牌录齐</span>';
+        }
+        return `<small class="live-advice-hand">${seat.hands.length > 1 ? `手 ${hand.hand + 1} · ` : ''}${handLabel(hand) || '—'}${decision}</small>`;
+      });
+      const selected = seat.seat === target.seat;
+      return `<div class="live-forecast-row${seat.isMine ? ' is-mine' : ''}${selected ? ' is-selected' : ''}">
+        <button type="button" class="button compact live-advice-seat" data-live-advice-seat="${seat.seat}" aria-pressed="${selected}">${seatName(seat.seat)}${seat.isMine ? ' · 关注' : ''}</button>
+        <div class="live-advice-hands">${details.join('')}</div></div>`;
     }).join('');
+    if (focused) list.querySelector(`[data-live-advice-seat="${focused}"]`)?.focus({ preventScroll: true });
     function distribution(rows) {
       return rows.map(row => `<span><b>${row.rank}</b>${percent(row.probability)}</span>`).join('');
     }
     $('live-distribution').innerHTML = distribution(projection.ranks);
     $('live-learned-distribution').innerHTML = distribution(projection.learnedRanks ?? []);
     const complete = summary.mode === 'complete';
-    const lead = projection.topRanks?.length && projection.topRanks.length < cssRanks.size ? `当前最高 ${projection.topRanks.join('、')}。` : '';
-    setText('live-forecast-note', `${complete ? '按本靴已录可见牌计算条件分布。' : '从中途加入时剩余深度未知，使用可见牌条件下的模型估计。'}${lead}实际发出的牌仍有不确定性。`);
+    const phaseNote = {
+      waiting: '等待庄家明牌。',
+      dealer: projection.dealer.peek === 'blackjack' ? '庄家查牌已确认 Blackjack。' : '庄家已经亮出底牌。',
+      unavailable: '当前牌账的未知牌不足以比较。',
+      players: `庄家明牌 ${projection.dealer.cards[0]}。${projection.dealer.cards[0] === 'A' && projection.dealer.peek === 'unknown' ? '庄家查牌无 Blackjack 时适用。' : ''}`,
+    }[projection.advicePhase];
+    setText('live-forecast-note', `${phaseNote}用已记录的牌近似比较要牌和停牌。${complete ? '' : '中途入桌，先前未见的牌和剩余深度未知。'}`);
     const scores = summary.metrics;
     setText('live-evaluated', scores.predictions.toLocaleString('zh-CN'));
     setText('live-accuracy', scores.predictions ? `${scores.topHits}/${scores.predictions} · ${percent(scores.topAccuracy)}` : '—');
@@ -1259,6 +1278,10 @@
   seatShortcuts.addEventListener('click', event => {
     const button = event.target.closest('button[data-live-seat]');
     if (button) select(Number(button.dataset.liveSeat));
+  });
+  $('live-forecasts').addEventListener('click', event => {
+    const button = event.target.closest('button[data-live-advice-seat]');
+    if (button) select(Number(button.dataset.liveAdviceSeat));
   });
   slotStrip.addEventListener('click', event => {
     const button = event.target.closest('button[data-live-slot]');

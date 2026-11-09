@@ -269,7 +269,8 @@
       (offset[0] || offset[1])).slice(0, 8);
     const explicitFallbackScore = Number.isFinite(config.fallbackMinScore);
     return {
-      offsets, relocate: config.relocate === true, minScore: config.minScore ?? 0.83, minMargin: config.minMargin ?? 0.10,
+      offsets, relocate: config.relocate === true, guardRotatedRanks: config.guardRotatedRanks === true,
+      minScore: config.minScore ?? 0.83, minMargin: config.minMargin ?? 0.10,
       fallbackMinScore: explicitFallbackScore ? Math.max(0.76, Math.min(1, config.fallbackMinScore)) : 0.91,
       fallbackPairedMinScore: explicitFallbackScore ? 0.81 : 0.93,
       fallbackMinMargin: Number.isFinite(config.fallbackMinMargin) ? Math.max(0.07, Math.min(1, config.fallbackMinMargin)) : 0.15,
@@ -310,7 +311,9 @@
   function plan(profile, crop, live) {
     return profile.slots.map(slot => {
       const bases = [slot, ...(slot.variants ?? []).map(variant => ({ ...slot, ...variant }))];
-      const displaced = live ? bases.filter(view => !view.holeReveal && !view.fixedView).flatMap(view => live.offsets.map(([dx, dy]) => ({
+      const ordinary = bases.filter(view => !view.recoveryOnly);
+      const recovery = bases.filter(view => view.recoveryOnly);
+      const displaced = live ? ordinary.filter(view => !view.holeReveal && !view.fixedView).flatMap(view => live.offsets.map(([dx, dy]) => ({
         ...view, x: view.x + dx, y: view.y + dy, shifted: true,
       })).filter(view => fits(view, profile))) : [];
       const samplePhase = live && Number.isFinite(slot.rankPhaseY) && Math.abs(slot.rankPhaseY) <= 0.5 && slot.rankPhaseY !== 0
@@ -318,7 +321,7 @@
           minScore: Math.max(0.86, slot.minScore ?? 0), minMargin: Math.max(0.12, slot.minMargin ?? 0) }
         : null;
       const phaseViews = samplePhase && fits(samplePhase, profile) ? [samplePhase] : [];
-      const views = [...bases, ...displaced, ...phaseViews].map(view => compile({
+      const views = [...ordinary, ...displaced, ...phaseViews, ...recovery].map(view => compile({
         ...view, x: view.x - crop.x, y: view.y - crop.y, cropX: crop.x, cropY: crop.y,
       }, crop.width));
       return { ...slot, views, bases, crop, key: `${slot.seat}:${slot.slot}` };
@@ -380,6 +383,33 @@
       }
     }
     return total ? white / total : 0;
+  }
+
+  function mismatchedRankOrientation(frame, glyph, view, crop, options, rank) {
+    if (!options.guardRotatedRanks || (rank !== '6' && rank !== '9')) return false;
+    // On these cards the suit is next to the rank, toward the card interior.
+    // An unflipped view of the opposite corner can score highly as the other
+    // digit. Reject it when the paper clearly extends the other way.
+    const direction = view.flip ? -1 : 1;
+    const floor = view.whiteFloor ?? 188;
+    const x = glyph.x - crop.x;
+    const y = glyph.y - crop.y;
+    let inside = 0, outside = 0, sampled = 0;
+    for (let dx = 13; dx <= 29; dx += 4) {
+      for (let dy = -6; dy <= 6; dy += 3) {
+        const xIn = Math.round(x + direction * (dx + view.v * dy));
+        const yIn = Math.round(y + direction * (view.u * dx + dy));
+        const xOut = Math.round(x + direction * (-dx + view.v * dy));
+        const yOut = Math.round(y + direction * (-view.u * dx + dy));
+        if (xIn < 0 || xOut < 0 || yIn < 0 || yOut < 0 ||
+            xIn >= crop.width || xOut >= crop.width || yIn >= crop.height || yOut >= crop.height) continue;
+        inside += Number(gray(frame, yIn * crop.width + xIn, view.invert) >= floor);
+        outside += Number(gray(frame, yOut * crop.width + xOut, view.invert) >= floor);
+        sampled++;
+      }
+    }
+    return sampled >= 12 && inside / sampled < 0.4 &&
+      outside / sampled >= 0.56 && (outside - inside) / sampled >= 0.24;
   }
 
   function rankPoints(frame, x, y, crop, scratch) {
@@ -466,7 +496,7 @@
     return { x, y, w, h, u, v, flip, invert, inkCeiling, minBright, whiteFloor, paired };
   }
 
-  function recoverGlyph(frame, slot, slots, centers, offset, singles, scratch, fan) {
+  function recoverGlyph(frame, slot, slots, centers, offset, singles, scratch, fan, options) {
     if (!singles.length || slot.invert) return { evidence: null, guess: null };
     const crop = slot.crop;
     const baseKeys = new Set();
@@ -476,7 +506,7 @@
     const shifts = slot.slot > 1 ? [...relocationShifts, ...extraRelocationShifts] : relocationShifts;
     let best = null, evidence = null, rival = null;
     for (const base of slot.bases) {
-      if (base.pairedOnly || base.invert || base.fixedView) continue;
+      if (base.pairedOnly || base.invert || base.fixedView || base.recoveryOnly) continue;
       const key = `${base.x}:${base.y}`;
       if (baseKeys.has(key)) continue;
       baseKeys.add(key);
@@ -514,6 +544,7 @@
                 verification: verificationPatch(view, false, px + crop.x, py + crop.y) };
               if (!evidence || found.strength > evidence.strength) evidence = found;
               if (found.score < 0.78 || found.margin < 0.072) continue;
+              if (mismatchedRankOrientation(frame, glyph, view, crop, options, known.rank)) continue;
               if (!best || found.strength > best.strength) {
                 if (best && best.rank !== found.rank) rival = best;
                 best = found;
@@ -559,6 +590,7 @@
     const priorScores = keepScores ? new Map() : null;
     for (const view of slot.views) {
       if (view.holeReveal && bypass) continue;
+      if (view.recoveryOnly && (best || bestTen || tenEvidence)) continue;
       // The alternate pixel grid only rescues unread single ranks. Keep a
       // normal match or evidence of a two-digit rank ahead of this retry.
       if (view.phaseFallback && (best || bestTen || tenEvidence || !hasLight(frame, view))) continue;
@@ -600,6 +632,7 @@
       const scoreFloor = Math.max(view.minScore ?? 0.72, strict ? options.minScore : 0);
       const marginFloor = Math.max(view.minMargin ?? 0.075, strict ? options.minMargin : 0);
       if (guess.score < scoreFloor || guess.margin < marginFloor) continue;
+      if (mismatchedRankOrientation(frame, glyph, view, slot.crop, options, guess.rank)) continue;
       const candidate = { ...glyph, ...guess, shifted: Boolean(view.shifted), area, distance };
       if (!best || candidate.score > best.score || (candidate.score === best.score && distance < best.distance)) {
         if (best && candidate.rank !== best.rank) rival = best;
@@ -621,7 +654,7 @@
     let rival = null;
     const checked = new Set();
     for (const view of slot.views.slice(0, fallbackProbeLimit)) {
-      if (view.holeReveal || view.phaseFallback) continue;
+      if (view.holeReveal || view.phaseFallback || view.recoveryOnly) continue;
       if (!hasLight(frame, view)) continue;
       const pair = tens.length || fallback.tens.length ? normalizeFallback(frame, view, true, true) : null;
       const group = pair ? fallback.tens : fallback.singles;
@@ -649,7 +682,8 @@
         requiredPrimaryLead = Math.max(options.fallbackMinMargin, prior.score >= 0.80 ? 0.12 : 0.07);
       }
       const publicMargin = Math.max(options.fallbackMinMargin, cautious ? 0.10 : 0.07);
-      if (guess.score >= floor && guess.margin >= publicMargin && primaryLead >= requiredPrimaryLead) {
+      if (guess.score >= floor && guess.margin >= publicMargin && primaryLead >= requiredPrimaryLead &&
+          !mismatchedRankOrientation(frame, glyph, view, slot.crop, options, guess.rank)) {
         const candidate = { ...glyph, ...guess, area, distance, shifted: Boolean(view.shifted), fallback: true };
         if (!best || candidate.score > best.score || (candidate.score === best.score && distance < best.distance)) {
           if (best && candidate.rank !== best.rank) rival = best;
@@ -942,7 +976,7 @@
           // location until the next expensive search can verify it.
           if (!mayRelocate(slot, seconds)) continue;
           const offset = fan ? { x: fan.expected.x - slot.x, y: fan.expected.y - slot.y } : offsetBefore(slot, active);
-          const recovered = recoverGlyph(pixels, slot, active, centers, offset, singles, relocationScratch, fan);
+          const recovered = recoverGlyph(pixels, slot, active, centers, offset, singles, relocationScratch, fan, live);
           guess = recovered.guess;
           evidence = recovered.evidence ?? evidence;
         }

@@ -95,7 +95,12 @@
 .live-forecasts { display: grid; gap: 4px; margin-top: 8px; }
 .live-forecast-row { display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline; justify-content: space-between; border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px; font-size: 12px; }
 .live-forecast-row.is-mine { border-color: #bc9658; color: var(--gold); }
-.live-forecast-row small { color: var(--muted-strong); }
+.live-forecast-row.is-selected { background: #203a35; }
+.live-advice-seat.button { min-height: 25px; padding: 2px 6px; color: inherit; }
+.live-advice-hands { display: grid; gap: 3px; }
+.live-advice-hand { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 3px 6px; color: var(--muted-strong); }
+.live-action-advice { border-radius: 5px; padding: 2px 5px; color: var(--mint-strong); background: #1d4234; white-space: nowrap; }
+.live-action-advice[data-action="stand"] { color: var(--gold); background: #3b3223; }
 .live-subhead { margin: 12px 0 6px; color: var(--text); font-size: 13px; }
 .live-distribution { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
 .live-distribution span { display: flex; justify-content: space-between; gap: 3px; padding: 4px 5px; border-radius: 5px; background: var(--surface-raised); font: 650 11px/1.4 ui-monospace, Consolas, monospace; }

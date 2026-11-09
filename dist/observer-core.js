@@ -1,6 +1,7 @@
 (function (root) {
   'use strict';
 
+  const strategy = typeof module === 'object' && module.exports ? require('./engine') : root.BlackjackEngine;
   const ranks = Object.freeze(['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']);
   const shoeSize = 416;
   const copies = 32;
@@ -507,6 +508,12 @@
     const probability = chances(counts, { ...target, hand: target.hand ?? 0 }, known, peek);
     const learned = learnedProbabilities(probability, calibration[state.mode].bias);
     const nextDraw = chances(counts, {}, known, peek);
+    const dealerRows = current.filter(row => row.seat === 0).sort((a, b) => a.slot - b.slot);
+    const dealerCards = dealerRows.map(row => row.rank);
+    const dealerFinishedPlayers = peek === 'blackjack' || dealerRows.some(row => row.slot > 1);
+    const decide = !dealerFinishedPlayers && known.up
+      ? strategy.hitStandPolicy(known.up, [...counts.slice(0, 9), counts.slice(9).reduce((sum, count) => sum + count, 0)])
+      : null;
     const best = topIndex(probability);
     const learnedBest = topIndex(learned);
     const leaders = best < 0 ? [] : ranks.filter((_, index) => probability[index] === probability[best]);
@@ -518,19 +525,21 @@
       const splitAces = Boolean(split && [0, 1].every(hand =>
         seatRows.some(row => row.hand === hand && row.slot === 1 && row.rank === 'A')));
       const hands = (split ? [0, 1] : [0]).map(hand => {
-        const cards = seatRows.filter(row => row.hand === hand)
-          .sort((a, b) => a.slot - b.slot).map(row => row.rank);
+        const dealt = seatRows.filter(row => row.hand === hand).sort((a, b) => a.slot - b.slot);
+        const cards = dealt.map(row => row.rank);
         const value = handInfo(cards);
         const status = state.statuses[handKey(state.round, seat, hand)] ?? 'playing';
+        const incomplete = cards.length < 2 || dealt.some((row, index) => row.slot !== index + 1);
+        const advice = decide && !incomplete && !splitAces && status === 'playing' && value.total < 21 ? decide(cards) : null;
         return {
           hand, cards, total: value.total, soft: value.soft, status,
           splitHand: Boolean(split), splitAces,
+          incomplete, advice,
           bustProbability: splitAces || status !== 'playing' ? null : bustProbability(cards, nextDraw),
         };
       });
       return { seat, active: hands.some(hand => hand.cards.length > 0), isMine: seat === state.mySeat, hands };
     });
-    const dealerCards = current.filter(row => row.seat === 0).sort((a, b) => a.slot - b.slot).map(row => row.rank);
     const dealer = handInfo(dealerCards);
     const hole = known.up && !known.hole ? chances(counts, { seat: 0, hand: 0, slot: 2 }, known, peek) : null;
     return {
@@ -540,6 +549,7 @@
       topRank: best < 0 ? null : ranks[best],
       learnedTopRank: learnedBest < 0 ? null : ranks[learnedBest],
       topRanks: leaders,
+      advicePhase: dealerFinishedPlayers ? 'dealer' : !known.up ? 'waiting' : decide ? 'players' : 'unavailable',
       seats,
       dealer: {
         cards: dealerCards, total: dealer.total, soft: dealer.soft, peek,
