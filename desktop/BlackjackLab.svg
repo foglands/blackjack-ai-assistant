@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>PP Blackjack</title>
+  <defs>
+    <linearGradient id="felt" x2="0.85" y2="1">
+      <stop stop-color="#1a4e41"/>
+      <stop offset="1" stop-color="#0a211d"/>
+    </linearGradient>
+    <linearGradient id="gold" x2="0.75" y2="1">
+      <stop stop-color="#fff0bf"/>
+      <stop offset="1" stop-color="#d9a756"/>
+    </linearGradient>
+    <path id="p" fill-rule="evenodd" d="M0 0h11a8.5 8.5 0 0 1 0 17H5v8H0zm5 5v7h6a3.5 3.5 0 0 0 0-7z"/>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#felt)"/>
+  <rect x="11" y="11" width="234" height="234" rx="53" fill="none" stroke="#78b39a" stroke-opacity=".35" stroke-width="2"/>
+
+  <g transform="rotate(-18 100 133)">
+    <rect x="50" y="62" width="105" height="151" rx="15" fill="#081d18" opacity=".55"/>
+    <rect x="49" y="55" width="105" height="151" rx="15" fill="#164638" stroke="#b79050" stroke-width="4"/>
+    <path d="M62 82v-5a9 9 0 0 1 9-9h10m60 110v5a9 9 0 0 1-9 9h-10" fill="none" stroke="#edc980" stroke-opacity=".72" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <g transform="rotate(13 146 121)">
+    <rect x="93" y="49" width="111" height="160" rx="15" fill="#081d18" opacity=".55"/>
+    <rect x="91" y="42" width="111" height="160" rx="15" fill="url(#gold)"/>
+    <rect x="96" y="47" width="101" height="150" rx="11" fill="none" stroke="#fff5d4" stroke-opacity=".6" stroke-width="2"/>
+    <g fill="#173a30">
+      <path d="M146 70c-9 14-34 24-34 42 0 14 17 21 29 9-2 8-5 13-11 17h32c-6-4-9-9-11-17 12 12 29 5 29-9 0-18-25-28-34-42Z"/>
+      <use href="#p" x="124" y="153"/>
+      <use href="#p" x="149" y="153"/>
+    </g>
+  </g>
+</svg>
