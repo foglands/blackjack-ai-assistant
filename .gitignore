@@ -1,0 +1,29 @@
+# Local application data and capture profiles
+.openai/
+.env
+.env.*
+desktop/user-data/
+recognition/validation/
+recognition/sample-truth.json
+recognition/classic29-events.csv
+*.profile.json
+*.local.json
+
+# Local media and experiment outputs
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.csv
+
+# Build outputs, tools and caches
+*.dll
+*.exe
+*.pdb
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+Thumbs.db

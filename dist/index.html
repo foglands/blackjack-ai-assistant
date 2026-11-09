@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1614">
+  <meta name="description" content="七座二十一点牌桌，快捷键录牌、Hi-Lo 计数与有限牌靴模拟。">
+  <title>手动牌桌 · PP专属21点测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="table-state.js"></script>
+  <script defer src="engine.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./trainer.html"><span class="brand-mark" aria-hidden="true">PP</span><span>PP专属21点测试 <small>PP BLACKJACK</small></span></a>
+      <a class="mode-badge" href="./trainer.html"><i></i> 返回训练中心</a>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">LIVE TABLE WORKBENCH</p>
+        <h1 id="page-title">真人二十一点牌桌</h1>
+        <p class="subtitle">跟踪七个座位与庄家的明牌。按观众视角，座位从右到左编号 1 至 7。</p>
+      </div>
+      <div class="intro-actions" role="group" aria-label="开始记录牌靴">
+        <button type="button" class="button" data-action="demo">载入示例</button>
+        <button type="button" class="button" data-action="new-shoe" aria-pressed="false" title="从刚洗好的牌靴开始记录">完整牌靴</button>
+        <button type="button" class="button" data-action="join-shoe" aria-pressed="true" title="从当前牌靴中途开始记录">中途入桌</button>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="牌靴统计">
+      <article class="stat"><span>已记录的牌</span><strong id="seen">0</strong><small id="coverage">中途入桌</small></article>
+      <article class="stat"><span id="running-label">Hi‑Lo 部分跑数</span><strong id="running">0</strong><small>2–6 加 1 · A、10 点牌减 1</small></article>
+      <article class="stat"><span>Hi‑Lo 真数</span><strong id="true-count">—</strong><small id="true-count-detail">缺少完整记录</small></article>
+      <article class="stat"><span id="remaining-label">牌靴剩余深度</span><strong id="remaining">未知</strong><small id="remaining-detail">缺少入桌前或漏记的牌</small></article>
+    </section>
+
+    <div class="workspace">
+      <section class="panel table-panel" aria-labelledby="table-title">
+        <div class="panel-head">
+          <div><p class="eyebrow" id="round-label">ROUND 01</p><h2 id="table-title">牌桌</h2></div>
+          <div class="panel-actions"><button type="button" class="button compact" data-action="undo">撤销</button><button type="button" class="button compact" data-action="round">下一局 <kbd>N</kbd></button></div>
+        </div>
+        <div class="input-area manual-entry-console">
+          <div class="input-header entry-target">
+            <div aria-live="polite"><span class="entry-target-mode" id="target-mode">录入新牌</span> <strong id="target-label">座位 4 · 本人</strong><small class="entry-target-detail" id="target-detail">第 1 张</small></div>
+            <div class="panel-actions">
+              <button type="button" class="button compact" id="append-button" data-action="append" hidden>录下一张</button>
+              <button type="button" class="button compact" id="own-button" data-action="own">设为本人座位</button>
+            </div>
+          </div>
+          <div class="entry-seat-keys" id="entry-seat-keys" role="group" aria-label="快捷选择座位"></div>
+          <div class="entry-slot-strip" id="entry-slots" role="group" aria-label="选择当前手牌位"></div>
+          <div class="rank-keys" id="rank-keys" aria-label="录入牌面"></div>
+          <div class="entry-actions" id="entry-actions"></div>
+          <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+          <p class="entry-key-help">点已录牌位可校正。<kbd>Shift</kbd> + <kbd>1</kbd>–<kbd>7</kbd> 选座位，<kbd>D</kbd> 选庄家，<kbd>T</kbd> 录 10。</p>
+          <details class="shortcuts">
+            <summary>快捷键与录入说明</summary>
+            <p>用 <kbd>A</kbd>、<kbd>2</kbd>–<kbd>9</kbd>、<kbd>T</kbd>、<kbd>J</kbd>、<kbd>Q</kbd>、<kbd>K</kbd> 记牌。按 <kbd>Esc</kbd> 可退出校正，接着录下一张。</p>
+            <p><kbd>X</kbd> 分牌，<kbd>[</kbd> <kbd>]</kbd> 切换分牌手，<kbd>S</kbd> 停牌，<kbd>F</kbd> 标记加倍，<kbd>P</kbd> 确认庄家查牌无 Blackjack，<kbd>N</kbd> 下一局，<kbd>Ctrl</kbd> + <kbd>Z</kbd> 撤销。</p>
+            <p>洗牌后从第一张牌记起，选「完整牌靴」。加入一靴已开始的牌局，选「中途入桌」。漏录时点「标记漏牌」，本靴已录牌仍会保留。庄家底牌翻开时再录入。</p>
+          </details>
+        </div>
+        <div class="felt">
+          <div class="felt-arc" aria-hidden="true"></div>
+          <div class="felt-caption" aria-hidden="true"><span>♠</span><small>BLACKJACK PAYS 3 TO 2</small></div>
+          <div class="dealer" id="dealer"></div>
+          <div class="seats" id="seats"></div>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="打法分析">
+        <section class="panel analysis" aria-labelledby="analysis-title">
+          <div class="panel-head"><div><p class="eyebrow">DECISION MODEL</p><h2 id="analysis-title">我的打法</h2></div><span class="soft-badge" id="model-seat">座位 4</span></div>
+          <div class="analysis-body">
+            <div class="analysis-hands" id="analysis-hands"></div>
+            <div class="analysis-results" id="analysis-results" aria-live="polite"></div>
+            <label class="setting" for="loss-rule"><span>庄家亮 10 后翻出 Blackjack</span>
+              <select id="loss-rule"><option value="all">追加注也输（模型假设）</option><option value="original">仅输原注（对照假设）</option></select>
+            </label>
+            <p class="model-note" id="model-note"></p>
+          </div>
+        </section>
+        <section class="panel composition" aria-labelledby="composition-title">
+          <div class="panel-head"><div><p class="eyebrow" id="composition-kicker">OBSERVED CARDS</p><h2 id="composition-title">已录牌分布</h2></div><button type="button" class="button compact" id="gap-button" data-action="gap" disabled>标记漏牌</button></div>
+          <div class="composition-body"><div id="distribution" class="distribution"></div><p class="model-note" id="composition-note">包括本靴各局已录的牌，柱长按最高已录张数缩放。</p></div>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="footer">
+      <p>参考桌规为 Loto‑Québec 真人 Blackjack Classic。8 副牌 · 软 17 停牌 · 分牌后不能加倍。</p>
+      <a href="https://portail.assets.lotoquebec.com/ressources/assets/v3/assets/blt8296e79a7001648c/blt7a444d5d164b7f61/6470e86bb851cf1d70e69f21/Blackjack-en.pdf" target="_blank" rel="noreferrer">查看官方规则 ↗</a>
+    </footer>
+  </main>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog"><h2 id="confirm-title">开始记录牌靴</h2><p id="confirm-copy"></p><div class="panel-actions"><button class="button" value="cancel" autofocus>取消</button><button class="button accent" value="confirm">确认</button></div></form>
+  </dialog>
+</body>
+</html>

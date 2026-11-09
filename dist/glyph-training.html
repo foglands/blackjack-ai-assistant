@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1614">
+  <meta name="description" content="用本地录像选取、核实和保存二十一点牌点字形。">
+  <title>录像字形训练 · PP专属21点测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="glyph-training.css">
+  <script defer src="recognition-profile.js"></script>
+  <script defer src="live-recognition-profile.js"></script>
+  <script defer src="recognition-engine.js"></script>
+  <script defer src="glyph-bank.js"></script>
+  <script defer src="glyph-training.js"></script>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-inner">
+    <a class="brand" href="./trainer.html"><span class="brand-mark" aria-hidden="true">PP</span><span>PP专属21点测试 <small>PP BLACKJACK</small></span></a>
+    <nav class="glyph-nav" aria-label="功能导航"><a class="mode-badge" href="./live.html">实时观战</a><a class="mode-badge" href="./recognition.html">录像识牌</a><a class="mode-badge" href="./trainer.html">训练中心</a></nav>
+  </div></header>
+  <main class="shell">
+    <section class="intro" aria-labelledby="glyph-title">
+      <div><p class="eyebrow">LOCAL GLYPH TRAINING</p><h1 id="glyph-title">录像字形训练</h1><p class="subtitle">从本地录像框选牌角的牌点，人工核对后保存字形，供实时识牌使用。</p></div>
+      <span class="soft-badge">本机字形库</span>
+    </section>
+    <div class="workspace glyph-workspace">
+      <div class="glyph-source-column">
+        <section class="panel" aria-labelledby="glyph-video-title">
+          <div class="panel-head"><div><p class="eyebrow">01 · VIDEO</p><h2 id="glyph-video-title">选择录像</h2></div><span class="soft-badge" id="glyph-video-size">—</span></div>
+          <div class="glyph-video"><video id="glyph-video" controls muted playsinline preload="metadata" hidden></video><p id="glyph-video-empty">选择本机 MP4 或 WebM。播放或拖动进度条到牌点清楚的画面。</p></div>
+          <div class="input-area"><div class="glyph-controls"><input type="file" id="glyph-file" accept=".mp4,.webm,video/mp4,video/webm" aria-label="选择本地录像"><button type="button" class="button accent" id="glyph-freeze" disabled>冻结当前帧</button></div><p class="feedback" id="glyph-video-status" role="status">录像和截图留在当前页面内存中。</p></div>
+        </section>
+        <section class="panel" aria-labelledby="glyph-frame-title">
+          <div class="panel-head"><div><p class="eyebrow">02 · SELECTION</p><h2 id="glyph-frame-title">框选牌点</h2></div><span class="soft-badge" id="glyph-frame-time">等待冻结</span></div>
+          <div class="glyph-frame-scroll" id="glyph-frame-scroll" tabindex="0" aria-label="可滚动的冻结帧">
+            <div class="glyph-frame-stage" id="glyph-frame-stage" hidden><canvas id="glyph-frame" aria-label="拖动框选一张牌左上角的牌点"></canvas><div id="glyph-selection" hidden aria-hidden="true"></div></div>
+            <p id="glyph-frame-empty">冻结后，在这里拖出框，只圈单张牌左上角的数字或字母，并留一点白边。</p>
+          </div>
+          <div class="input-area"><div class="glyph-controls">
+            <label class="setting"><span>冻结帧倍率</span><select id="glyph-zoom" disabled><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option></select></label>
+            <label class="setting"><span>左上 X</span><input id="glyph-x" type="number" min="0" step="1" disabled></label>
+            <label class="setting"><span>左上 Y</span><input id="glyph-y" type="number" min="0" step="1" disabled></label>
+            <label class="setting"><span>宽</span><input id="glyph-width" type="number" min="5" step="1" disabled></label>
+            <label class="setting"><span>高</span><input id="glyph-height" type="number" min="5" step="1" disabled></label>
+          </div><p class="feedback" id="glyph-frame-status" role="status">字形太小时可以放大冻结帧再框选。</p></div>
+        </section>
+      </div>
+      <aside class="glyph-source-column" aria-label="样本核对">
+        <section class="panel" aria-labelledby="glyph-label-title">
+          <div class="panel-head"><div><p class="eyebrow">03 · VERIFIED LABEL</p><h2 id="glyph-label-title">核对并保存</h2></div></div>
+          <div class="analysis-body">
+            <div class="glyph-previews"><figure><figcaption>框选原图</figcaption><div><canvas id="glyph-region-preview" hidden></canvas><span id="glyph-region-empty">—</span></div></figure><figure><figcaption>16×20 字形</figcaption><div><canvas id="glyph-mask" width="16" height="20" hidden></canvas><span id="glyph-mask-empty">—</span></div></figure></div>
+            <label class="setting"><span>斜切校正</span><select id="glyph-correction" disabled><option value="none">无</option><option value="0">参考庄家</option><option value="1">参考座位 1</option><option value="2">参考座位 2</option><option value="3">参考座位 3</option><option value="4">参考座位 4</option><option value="5">参考座位 5</option><option value="6">参考座位 6</option><option value="7">参考座位 7</option></select></label>
+            <label class="glyph-verify"><input type="checkbox" id="glyph-rotate" disabled> 字形旋转 180°</label>
+            <label class="setting"><span>画面里实际的牌点</span><select id="glyph-label" disabled><option value="" disabled selected>人工选择牌点</option></select></label>
+            <label class="glyph-verify"><input type="checkbox" id="glyph-verified" disabled> 我已核对原图、字形和所选牌点。</label>
+            <div class="glyph-save"><button type="button" class="button accent" id="glyph-save" disabled>保存核实字形</button></div>
+            <p class="feedback" id="glyph-save-status" role="status">选择清晰的牌点，确认右侧字形与原图一致。</p>
+            <p class="model-note">训练 10 时请同时圈住 1 和 0。本机字形库保存 16×20 的字形位图和牌点标签。重新打开实时观战后会读取新增样本。</p>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="glyph-bank-title"><div class="panel-head"><div><p class="eyebrow">SAVED SAMPLES</p><h2 id="glyph-bank-title">本机样本</h2></div><span class="soft-badge" id="glyph-bank-total">0 份</span></div><div class="analysis-body"><div class="glyph-bank-counts" id="glyph-bank-counts"></div><p class="model-note">可从不同画面角度选同一牌点的清晰样本。每种牌点可存 12 份不同的字形。</p></div></section>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

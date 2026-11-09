@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1614">
+  <title>PP专属21点测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="trainer.css">
+  <script defer src="table-state.js"></script>
+  <script defer src="engine.js"></script>
+  <script defer src="training-engine.js"></script>
+  <script defer src="practice.js"></script>
+  <script defer src="trainer.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./trainer.html"><span class="brand-mark" aria-hidden="true">PP</span><span>PP专属21点测试 <small>PP BLACKJACK</small></span></a>
+      <span class="mode-badge"><i></i> 本机 · 个人训练</span>
+    </div>
+  </header>
+  <main class="shell training-shell">
+    <section class="training-intro" aria-labelledby="page-title">
+      <div class="training-hero-copy">
+        <p class="eyebrow">PERSONAL BLACKJACK TRAINER</p>
+        <h1 id="page-title">PP专属21点测试</h1>
+        <p class="subtitle">练习牌桌决策、训练 AI 策略，或用观战工具复盘真人发牌。</p>
+        <div class="training-hero-actions"><a class="button accent" href="./index.html">手动录牌 <span aria-hidden="true">→</span></a><a class="button" href="./live.html">实时观战 <span aria-hidden="true">→</span></a></div>
+      </div>
+      <div class="training-hero-cards" aria-hidden="true"><span>K ♠</span><span>A ♠</span></div>
+    </section>
+    <nav class="training-nav" aria-label="训练功能">
+      <a href="#practice" data-view="practice" aria-current="page">对局练习</a>
+      <a href="#ai" data-view="ai">AI 训练</a>
+      <a href="./recognition.html">录像识牌 ↗</a>
+      <a href="./glyph-training.html">录像字形训练 ↗</a>
+    </nav>
+
+    <section id="practice" hidden></section>
+
+    <section id="ai" hidden aria-label="AI 策略训练">
+      <div class="stats" aria-label="模型训练统计">
+        <article class="stat"><span>已训练局数</span><strong id="model-rounds">0</strong><small>随训练累积</small></article>
+        <article class="stat"><span>已探索状态</span><strong id="model-states">0</strong><small>牌型、庄家明牌和真数分组</small></article>
+        <article class="stat"><span>已训练决策</span><strong id="model-decisions">0</strong><small>要牌、停牌、加倍与分牌</small></article>
+        <article class="stat"><span>模型保存</span><strong class="storage-value" id="model-storage">本机</strong><small id="model-storage-detail">选择训练参数开始</small></article>
+      </div>
+
+      <div class="training-grid">
+        <section class="panel training-panel" aria-labelledby="train-title">
+          <div class="panel-head"><div><p class="eyebrow">Q-LEARNING</p><h2 id="train-title">训练策略</h2></div></div>
+          <div class="training-body">
+            <p class="training-description">AI 在八副牌的模拟牌靴中尝试不同打法，用结算结果更新策略。练习结束后，你可以对照它的选择。</p>
+            <div class="training-settings">
+              <label class="setting" for="batch-size"><span>本次训练局数</span>
+                <select id="batch-size"><option value="1000">1,000 局</option><option value="10000" selected>10,000 局</option><option value="50000">50,000 局</option><option value="200000">200,000 局</option></select>
+              </label>
+              <label class="setting" for="training-players"><span>模拟其他玩家</span>
+                <select id="training-players"><option value="0">0 人</option><option value="1">1 人</option><option value="2">2 人</option><option value="3" selected>3 人</option><option value="4">4 人</option><option value="5">5 人</option><option value="6">6 人</option></select>
+              </label>
+              <label class="setting settlement" for="training-loss"><span>庄家亮 10 后翻出 Blackjack</span>
+                <select id="training-loss"><option value="all">追加注也输（模型假设）</option><option value="original">仅输原注（对照假设）</option></select>
+              </label>
+            </div>
+            <div class="training-progress"><progress id="train-progress" value="0" max="1" aria-label="训练进度"></progress><span id="progress-count">准备就绪</span></div>
+            <div class="training-actions">
+              <button type="button" id="train-start" class="button accent">开始训练</button>
+              <button type="button" id="train-stop" class="button" hidden>暂停训练</button>
+              <button type="button" id="train-reset" class="button subtle" disabled>清除当前模型</button>
+            </div>
+            <p id="training-status" class="model-note" role="status">两种结算假设分别保存，切换时会载入对应模型。</p>
+          </div>
+        </section>
+
+        <section class="panel training-panel" aria-labelledby="evaluate-title">
+          <div class="panel-head"><div><p class="eyebrow">HELD-OUT TEST</p><h2 id="evaluate-title">独立评估</h2></div><span class="soft-badge">10,000 局／策略</span></div>
+          <div class="training-body">
+            <p class="training-description">用固定的独立测试种子比较学习策略和固定基准策略。评估过程只计分，模型参数保持原值。</p>
+            <div id="evaluation-results" aria-live="polite"></div>
+            <div class="training-actions"><button type="button" id="evaluate" class="button" disabled>运行评估</button></div>
+            <p class="model-note">净收益以每局的 1 单位原注为基准。短期结果有波动，学习策略可能低于基准。</p>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>练习使用虚拟筹码。训练记录和策略保存在本机。</p>
+      <a href="https://portail.assets.lotoquebec.com/ressources/assets/v3/assets/blt8296e79a7001648c/blt7a444d5d164b7f61/6470e86bb851cf1d70e69f21/Blackjack-en.pdf" target="_blank" rel="noreferrer">参考桌规 ↗</a>
+    </footer>
+  </main>
+  <dialog id="reset-model-dialog" aria-labelledby="reset-model-title">
+    <form method="dialog">
+      <h2 id="reset-model-title">清除当前模型</h2>
+      <p>将清空当前结算假设下的学习记录。练习成绩单独保存。</p>
+      <div class="panel-actions"><button class="button" value="cancel" autofocus>取消</button><button class="button accent" value="confirm">清除</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

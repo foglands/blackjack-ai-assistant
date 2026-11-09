@@ -1,0 +1,26 @@
+.glyph-nav { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
+.glyph-source-column { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.glyph-video, .glyph-frame-scroll { background: var(--field); border-block: 1px solid var(--line); }
+.glyph-video video { display: block; width: 100%; max-height: 510px; }
+.glyph-video p, .glyph-frame-scroll > p { display: grid; min-height: 132px; place-items: center; padding: 14px; color: var(--muted-strong); text-align: center; }
+.glyph-frame-scroll { max-height: 550px; overflow: auto; }
+.glyph-frame-stage { position: relative; width: 100%; }
+.glyph-frame-stage canvas { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: none; }
+#glyph-selection { position: absolute; pointer-events: none; outline: 2px solid #ffd489; box-shadow: 0 0 0 200vmax #0a152855; }
+.glyph-controls { display: flex; flex-wrap: wrap; gap: 7px 10px; align-items: end; }
+.glyph-controls input[type=file] { flex: 1 1 220px; min-width: 0; color: var(--muted-strong); }
+.glyph-controls input::file-selector-button { margin-right: 7px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--surface-raised); cursor: pointer; }
+.glyph-controls .setting { margin: 0; }
+.glyph-controls .setting input { width: 68px; min-height: 34px; padding: 3px 5px; }
+.glyph-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.glyph-previews figure { min-width: 0; margin: 0; }
+.glyph-previews figcaption { color: var(--muted-strong); font-size: 11px; margin-bottom: 4px; }
+.glyph-previews figure > div { display: grid; place-items: center; min-height: 120px; padding: 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--field); color: var(--muted); }
+.glyph-previews canvas { display: block; image-rendering: pixelated; max-width: 100%; }
+#glyph-mask { width: min(96px, 100%); height: auto; }
+.glyph-verify { display: flex; gap: 6px; align-items: center; margin-top: 7px; color: var(--muted-strong); font-size: 12px; }
+.glyph-verify input { min-height: auto; }
+.glyph-save { margin-top: 9px; }
+.glyph-bank-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.glyph-bank-counts span { display: flex; justify-content: space-between; padding: 4px 7px; border-radius: 5px; background: var(--surface-raised); font: 650 12px/1.4 ui-monospace, Consolas, monospace; }
+@media (max-width: 640px) { .glyph-nav { gap: 4px; } .glyph-nav a { padding-inline: 7px; font-size: 10px; } }

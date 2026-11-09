@@ -1,0 +1,497 @@
+{
+  "source": "Original procedural artwork. No online deck, casino footage or screenshots used.",
+  "seatNumbering": "Dealer is 0. Seat 1 is screen right and seat 7 is screen left.",
+  "timeBasis": "First visible frame. Frame numbers are zero-based at a constant 25 fps.",
+  "geometry": {
+    "width": 2328,
+    "height": 1302,
+    "reference": "Local live-recognition profile"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "occupied": [
+        1,
+        3,
+        5,
+        7
+      ],
+      "empty": [
+        2,
+        4,
+        6
+      ],
+      "startFrame": 0,
+      "holeDealtFrame": 148
+    },
+    {
+      "round": 2,
+      "occupied": [
+        2,
+        4,
+        7
+      ],
+      "empty": [
+        1,
+        3,
+        5,
+        6
+      ],
+      "startFrame": 240,
+      "holeDealtFrame": 360
+    },
+    {
+      "round": 3,
+      "occupied": [
+        1,
+        2,
+        4,
+        6
+      ],
+      "empty": [
+        3,
+        5,
+        7
+      ],
+      "startFrame": 509,
+      "holeDealtFrame": 657
+    }
+  ],
+  "events": [
+    {
+      "round": 1,
+      "seat": 1,
+      "slot": 1,
+      "rank": "2",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 22,
+      "time": 0.88,
+      "x": 1598,
+      "y": 912
+    },
+    {
+      "round": 1,
+      "seat": 3,
+      "slot": 1,
+      "rank": "3",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 36,
+      "time": 1.44,
+      "x": 1321,
+      "y": 1028
+    },
+    {
+      "round": 1,
+      "seat": 5,
+      "slot": 1,
+      "rank": "4",
+      "suit": "♣",
+      "stage": "initial",
+      "frame": 50,
+      "time": 2.0,
+      "x": 968,
+      "y": 1027
+    },
+    {
+      "round": 1,
+      "seat": 7,
+      "slot": 1,
+      "rank": "5",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 64,
+      "time": 2.56,
+      "x": 683,
+      "y": 904
+    },
+    {
+      "round": 1,
+      "seat": 0,
+      "slot": 1,
+      "rank": "K",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 78,
+      "time": 3.12,
+      "x": 1122,
+      "y": 795
+    },
+    {
+      "round": 1,
+      "seat": 1,
+      "slot": 2,
+      "rank": "6",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 92,
+      "time": 3.68,
+      "x": 1593,
+      "y": 887
+    },
+    {
+      "round": 1,
+      "seat": 3,
+      "slot": 2,
+      "rank": "7",
+      "suit": "♣",
+      "stage": "initial",
+      "frame": 106,
+      "time": 4.24,
+      "x": 1332,
+      "y": 981
+    },
+    {
+      "round": 1,
+      "seat": 5,
+      "slot": 2,
+      "rank": "8",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 120,
+      "time": 4.8,
+      "x": 1023,
+      "y": 984
+    },
+    {
+      "round": 1,
+      "seat": 7,
+      "slot": 2,
+      "rank": "9",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 134,
+      "time": 5.36,
+      "x": 761,
+      "y": 883
+    },
+    {
+      "round": 1,
+      "seat": 1,
+      "slot": 3,
+      "rank": "Q",
+      "suit": "♥",
+      "stage": "hit",
+      "frame": 174,
+      "time": 6.96,
+      "x": 1575,
+      "y": 872
+    },
+    {
+      "round": 1,
+      "seat": 0,
+      "slot": 2,
+      "rank": "7",
+      "suit": "♣",
+      "stage": "reveal",
+      "frame": 193,
+      "time": 7.72,
+      "x": 1170,
+      "y": 803
+    },
+    {
+      "round": 2,
+      "seat": 2,
+      "slot": 1,
+      "rank": "10",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 262,
+      "time": 10.48,
+      "x": 1496,
+      "y": 989
+    },
+    {
+      "round": 2,
+      "seat": 4,
+      "slot": 1,
+      "rank": "J",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 276,
+      "time": 11.04,
+      "x": 1150,
+      "y": 1043
+    },
+    {
+      "round": 2,
+      "seat": 7,
+      "slot": 1,
+      "rank": "Q",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 290,
+      "time": 11.6,
+      "x": 683,
+      "y": 904
+    },
+    {
+      "round": 2,
+      "seat": 0,
+      "slot": 1,
+      "rank": "A",
+      "suit": "♣",
+      "stage": "initial",
+      "frame": 304,
+      "time": 12.16,
+      "x": 1122,
+      "y": 795
+    },
+    {
+      "round": 2,
+      "seat": 2,
+      "slot": 2,
+      "rank": "K",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 318,
+      "time": 12.72,
+      "x": 1485,
+      "y": 941
+    },
+    {
+      "round": 2,
+      "seat": 4,
+      "slot": 2,
+      "rank": "2",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 332,
+      "time": 13.28,
+      "x": 1186,
+      "y": 995
+    },
+    {
+      "round": 2,
+      "seat": 7,
+      "slot": 2,
+      "rank": "3",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 346,
+      "time": 13.84,
+      "x": 761,
+      "y": 883
+    },
+    {
+      "round": 2,
+      "seat": 4,
+      "slot": 3,
+      "rank": "6",
+      "suit": "♣",
+      "stage": "hit",
+      "frame": 386,
+      "time": 15.44,
+      "x": 1199,
+      "y": 972
+    },
+    {
+      "round": 2,
+      "seat": 7,
+      "slot": 3,
+      "rank": "10",
+      "suit": "♦",
+      "stage": "hit",
+      "frame": 405,
+      "time": 16.2,
+      "x": 800,
+      "y": 868
+    },
+    {
+      "round": 2,
+      "seat": 0,
+      "slot": 2,
+      "rank": "4",
+      "suit": "♠",
+      "stage": "reveal",
+      "frame": 424,
+      "time": 16.96,
+      "x": 1170,
+      "y": 803
+    },
+    {
+      "round": 2,
+      "seat": 0,
+      "slot": 3,
+      "rank": "8",
+      "suit": "♥",
+      "stage": "dealer-hit",
+      "frame": 443,
+      "time": 17.72,
+      "x": 1221,
+      "y": 803
+    },
+    {
+      "round": 2,
+      "seat": 0,
+      "slot": 4,
+      "rank": "9",
+      "suit": "♣",
+      "stage": "dealer-hit",
+      "frame": 462,
+      "time": 18.48,
+      "x": 1272,
+      "y": 803
+    },
+    {
+      "round": 3,
+      "seat": 1,
+      "slot": 1,
+      "rank": "A",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 531,
+      "time": 21.24,
+      "x": 1598,
+      "y": 912
+    },
+    {
+      "round": 3,
+      "seat": 2,
+      "slot": 1,
+      "rank": "5",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 545,
+      "time": 21.8,
+      "x": 1496,
+      "y": 989
+    },
+    {
+      "round": 3,
+      "seat": 4,
+      "slot": 1,
+      "rank": "9",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 559,
+      "time": 22.36,
+      "x": 1150,
+      "y": 1043
+    },
+    {
+      "round": 3,
+      "seat": 6,
+      "slot": 1,
+      "rank": "J",
+      "suit": "♣",
+      "stage": "initial",
+      "frame": 573,
+      "time": 22.92,
+      "x": 788,
+      "y": 984
+    },
+    {
+      "round": 3,
+      "seat": 0,
+      "slot": 1,
+      "rank": "6",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 587,
+      "time": 23.48,
+      "x": 1122,
+      "y": 795
+    },
+    {
+      "round": 3,
+      "seat": 1,
+      "slot": 2,
+      "rank": "4",
+      "suit": "♠",
+      "stage": "initial",
+      "frame": 601,
+      "time": 24.04,
+      "x": 1593,
+      "y": 887
+    },
+    {
+      "round": 3,
+      "seat": 2,
+      "slot": 2,
+      "rank": "K",
+      "suit": "♥",
+      "stage": "initial",
+      "frame": 615,
+      "time": 24.6,
+      "x": 1485,
+      "y": 941
+    },
+    {
+      "round": 3,
+      "seat": 4,
+      "slot": 2,
+      "rank": "8",
+      "suit": "♣",
+      "stage": "initial",
+      "frame": 629,
+      "time": 25.16,
+      "x": 1186,
+      "y": 995
+    },
+    {
+      "round": 3,
+      "seat": 6,
+      "slot": 2,
+      "rank": "2",
+      "suit": "♦",
+      "stage": "initial",
+      "frame": 643,
+      "time": 25.72,
+      "x": 869,
+      "y": 952
+    },
+    {
+      "round": 3,
+      "seat": 1,
+      "slot": 3,
+      "rank": "8",
+      "suit": "♠",
+      "stage": "hit",
+      "frame": 683,
+      "time": 27.32,
+      "x": 1575,
+      "y": 872
+    },
+    {
+      "round": 3,
+      "seat": 6,
+      "slot": 3,
+      "rank": "7",
+      "suit": "♥",
+      "stage": "hit",
+      "frame": 702,
+      "time": 28.08,
+      "x": 939,
+      "y": 921
+    },
+    {
+      "round": 3,
+      "seat": 0,
+      "slot": 2,
+      "rank": "9",
+      "suit": "♣",
+      "stage": "reveal",
+      "frame": 721,
+      "time": 28.84,
+      "x": 1170,
+      "y": 803
+    },
+    {
+      "round": 3,
+      "seat": 0,
+      "slot": 3,
+      "rank": "2",
+      "suit": "♦",
+      "stage": "dealer-hit",
+      "frame": 740,
+      "time": 29.6,
+      "x": 1221,
+      "y": 803
+    }
+  ],
+  "fps": 25,
+  "frames": 787,
+  "duration": 31.48
+}

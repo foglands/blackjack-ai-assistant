@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1614">
+  <meta name="description" content="本机窗口取帧、自定义牌位跟踪、人工校正和二十一点推算。">
+  <title>实时观察 · PP专属21点测试</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="live.css">
+  <script defer src="table-state.js"></script>
+  <script defer src="engine.js"></script>
+  <script defer src="recognition-profile.js"></script>
+  <script defer src="live-recognition-profile.js"></script>
+  <script defer src="recognition-engine.js"></script>
+  <script defer src="observer-core.js"></script>
+  <script defer src="glyph-bank.js"></script>
+  <script defer src="live-layout.js"></script>
+  <script defer src="live-custom-profile.js"></script>
+  <script defer src="public-trained-glyphs.js"></script>
+  <script defer src="live-capture.js"></script>
+  <script defer src="live-ui.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./trainer.html"><span class="brand-mark" aria-hidden="true">PP</span><span>PP专属21点测试 <small>PP BLACKJACK</small></span></a>
+      <nav class="live-nav" aria-label="主要功能"><a class="mode-badge" href="./glyph-training.html">录像字形训练</a><a class="mode-badge" href="./recognition.html">录像识牌</a><a class="mode-badge" href="./index.html">手动牌桌</a><a class="mode-badge" href="./trainer.html">训练中心</a></nav>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">LOCAL WINDOW OBSERVER</p><h1 id="page-title">实时牌桌观察</h1>
+        <p class="subtitle">记录桌上每张可见牌，查看跑数和各座位的牌面推算。</p></div>
+      <div class="panel-actions"><a class="button compact" href="#live-source-title">配置自动识牌</a><span class="soft-badge" id="live-capture-state">尚未共享窗口</span></div>
+    </section>
+
+    <section class="stats live-stats" aria-label="牌靴统计">
+      <article class="stat"><span>已记录的牌</span><strong id="live-seen">0</strong><small id="live-round-seen">本局 0 张</small></article>
+      <article class="stat"><span id="live-running-label">Hi‑Lo 部分跑数</span><strong id="live-running">0</strong><small>所有座位与庄家的可见牌</small></article>
+      <article class="stat"><span>Hi‑Lo 真数</span><strong id="live-true-count">—</strong><small id="live-depth-note">中途入桌时未知</small></article>
+      <article class="stat"><span>未知牌／剩余深度</span><strong id="live-remaining">未知</strong><small>庄家未翻开的底牌计入未知</small></article>
+    </section>
+
+    <div class="workspace live-table-grid">
+      <section class="panel table-panel" aria-labelledby="live-table-title">
+        <div class="panel-head"><div><p class="eyebrow" id="live-round-label">ROUND 01</p><h2 id="live-table-title">7 座牌桌</h2></div><div class="panel-actions"><button class="button compact" type="button" id="live-next">下一局 <kbd>N</kbd></button></div></div>
+        <section class="input-area live-entry-console" id="live-entry" aria-labelledby="live-entry-title">
+          <div class="live-entry-head"><div><p class="eyebrow">MANUAL ENTRY</p><h3 id="live-entry-title">手动录牌</h3></div><span class="live-entry-state" id="live-entry-state" data-kind="add">录入新牌</span></div>
+          <p class="model-note" id="live-seat-note">座位从右向左编号。点桌面上的牌可直接更正。</p>
+          <div class="live-seat-shortcuts" id="live-seat-shortcuts" role="group" aria-label="快速选择座位"></div>
+          <div class="live-editor live-entry-controls" aria-label="录入位置">
+            <strong id="live-editor-target" class="live-entry-target">座位 4 · 手 1 · 第 1 张</strong>
+            <label class="setting"><span>手牌</span><select id="live-editor-hand"><option value="1">手 1</option><option value="2">手 2</option></select></label>
+            <button class="button compact" type="button" id="live-next-slot">下一个空位</button>
+          </div>
+          <div class="live-slot-strip" id="live-slot-strip" role="group" aria-label="当前手牌的牌位"></div>
+          <div class="rank-keys" id="live-ranks" aria-label="人工录入牌面"></div>
+          <div class="live-entry-options"><label class="live-check"><input type="checkbox" id="live-auto-next" checked> 新牌录入后跳到下一空位</label><label class="live-check"><input type="checkbox" id="live-just-seen"> 刚翻开的新牌，纳入预测回测</label></div>
+          <div class="entry-actions"><button class="button compact" type="button" id="live-delete" disabled>删除这张</button><button class="button compact" type="button" id="live-undo" disabled>撤销人工修改</button><button class="button compact" type="button" id="live-my-seat">关注此座位</button><button class="button compact" type="button" id="live-split">标记分牌</button><button class="button compact" type="button" id="live-stand">标记停牌</button><button class="button compact" type="button" id="live-double">标记加倍</button><button class="button compact" type="button" id="live-peek">庄家查牌无 Blackjack</button><button class="button compact" type="button" id="live-learn" disabled>用已核实牌面校准</button></div>
+          <p class="feedback" id="live-editor-feedback" role="status">选择座位后点牌面录入。点桌上已有的牌可更正或删除。</p>
+          <details class="shortcuts"><summary>指定牌位与快捷键</summary>
+            <div class="live-editor">
+              <label class="setting"><span>指定座位</span><select id="live-editor-seat"><option value="0">庄家</option><option value="1">座位 1</option><option value="2">座位 2</option><option value="3">座位 3</option><option value="4" selected>座位 4</option><option value="5">座位 5</option><option value="6">座位 6</option><option value="7">座位 7</option></select></label>
+              <label class="setting"><span>指定牌位</span><select id="live-editor-slot"></select></label>
+            </div>
+            <p>新一局旧牌已撤走后，点「下一局」。洗牌后才选「完整牌靴」。漏记或捕获中断后从中途接入，点「标记漏牌」。</p>
+            <p><kbd>Shift</kbd> + 座位数字选座位，<kbd>D</kbd> 选庄家，<kbd>A</kbd>、<kbd>2</kbd>–<kbd>9</kbd>、<kbd>T</kbd>、<kbd>J</kbd>、<kbd>Q</kbd>、<kbd>K</kbd> 录牌，<kbd>Delete</kbd> 删除，<kbd>Ctrl</kbd> + <kbd>Z</kbd> 撤销。删除的牌位会暂停自动识别，可以点该牌位重新录入。</p>
+          </details>
+        </section>
+        <div class="felt" id="live-felt"><div class="felt-arc" aria-hidden="true"></div><div class="felt-caption" aria-hidden="true"><span>♠</span><small>BLACKJACK PAYS 3 TO 2</small></div><div class="dealer" id="live-dealer"></div><div class="seats" id="live-seats"></div></div>
+      </section>
+      <aside class="panel" aria-labelledby="live-forecast-title">
+        <div class="panel-head"><div><p class="eyebrow">ALL SEATS</p><h2 id="live-forecast-title">全部座位牌面推算</h2></div></div>
+        <div class="analysis-body"><p id="live-forecast-note" class="model-note">下一张未知牌的分布，以及各手再抽一张时爆牌的概率。</p><div id="live-forecasts" class="live-forecasts"></div>
+          <h3 class="live-subhead" id="live-distribution-label">下一张牌分布</h3><div id="live-distribution" class="live-distribution" aria-labelledby="live-distribution-label"></div>
+          <h3 class="live-subhead">预测回测</h3><dl class="live-timings"><div><dt>已评分的新牌</dt><dd id="live-evaluated">0</dd></div><div><dt>最高概率牌面命中</dt><dd id="live-accuracy">—</dd></div><div><dt>对数损失／Brier 分数</dt><dd id="live-score">—</dd></div></dl><p class="model-note">开场快照和补记旧牌只计入牌靴。回测比较牌面出现前已算出的分布。</p>
+          <h3 class="live-subhead">学习校准 · 实验</h3><div id="live-learned-distribution" class="live-distribution"></div><dl class="live-timings live-learning-metrics"><div><dt>当前模式已学习</dt><dd id="live-learning-updates">0 张</dd></div><div><dt>当前模式对数损失（学习／基准）</dt><dd id="live-learning-score">—</dd></div></dl><p class="model-note">完整牌靴与中途入桌分别校准。分数越低越好，少量样本会波动。</p><p class="model-note" id="live-storage-note">牌靴记录和学习模型保存在本机。</p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="panel live-shoe" aria-labelledby="live-shoe-title">
+      <div class="panel-head"><div><p class="eyebrow">SHOE COVERAGE</p><h2 id="live-shoe-title">牌靴模式</h2></div><span class="soft-badge" id="live-mode">中途入桌</span></div>
+      <div class="analysis-body"><div class="panel-actions" aria-label="牌靴起点">
+        <button class="button" type="button" id="live-full-shoe" aria-pressed="false">完整牌靴 · 已洗牌</button>
+        <button class="button" type="button" id="live-mid-shoe" aria-pressed="true">中途入桌</button>
+        <button class="button compact" type="button" id="live-gap" disabled>标记漏牌</button>
+      </div><p class="model-note" id="live-shoe-note">实际剩余深度未知，只显示已经观察到的跑数。</p></div>
+    </section>
+
+    <div class="workspace live-capture-grid">
+      <section class="panel" aria-labelledby="live-source-title">
+        <div class="panel-head"><div><p class="eyebrow">WINDOW CAPTURE</p><h2 id="live-source-title">捕获窗口</h2></div><span id="live-source-size" class="soft-badge">—</span></div>
+        <ol class="live-capture-steps" aria-label="捕获与识别进度">
+          <li id="live-step-capture" data-state="current"><b>1</b><span>窗口捕获</span><small id="live-step-capture-note">等待选择窗口</small></li>
+          <li id="live-step-crop"><b>2</b><span>画面对齐</span><small id="live-step-crop-note">等待预览</small></li>
+          <li id="live-step-recognition"><b>3</b><span>自动识牌</span><small id="live-step-recognition-note">尚未启动</small></li>
+        </ol>
+        <section class="live-layout-tools" aria-label="自动识牌布局">
+          <div class="live-layout-controls">
+            <label class="setting"><span>识牌布局</span><select id="live-layout-picker"><option value="classic">内置 Classic 参考</option></select></label>
+            <label class="setting"><span>布局名称（可选）</span><input id="live-layout-name" type="text" maxlength="48" placeholder="例如：我的桌面布局"></label>
+            <label class="setting" id="live-layout-seat-count-field" hidden><span>玩家座位数</span><select id="live-layout-seat-count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option selected>7</option><option>8</option><option>9</option></select></label>
+            <button type="button" class="button compact" id="live-layout-new">新建自定义</button>
+            <button type="button" class="button compact" id="live-layout-save" disabled>保存布局</button>
+          </div>
+          <div id="live-layout-public-glyphs-field" hidden>
+            <label class="live-check"><input type="checkbox" id="live-layout-public-glyphs" disabled> 公开样本辅助识牌（试用）</label>
+            <p class="model-note">优先使用本机已核实的字形。识牌存疑时可在账本校正。修改后点「保存布局」。</p>
+          </div>
+          <p class="model-note" id="live-layout-note">名称用于区分本机布局。切换布局会保留各自的牌靴记录。</p>
+          <div class="live-layout-coverage" id="live-layout-coverage" hidden aria-label="自定义布局牌位覆盖"></div>
+        </section>
+        <div class="live-preview" id="live-preview"><canvas id="live-preview-canvas" hidden aria-label="所选窗口预览，框选画面或点选牌面用于校准"></canvas><div id="live-crop-overlay" hidden aria-hidden="true"></div><div id="live-guide-overlay" hidden aria-hidden="true"></div><div id="live-anchor-overlay" hidden aria-hidden="true"></div><p id="live-preview-empty">通过桌面窗口选择器选择牌桌窗口。</p></div>
+        <div class="input-area">
+          <div class="panel-actions"><button class="button accent" type="button" id="live-start">选择窗口</button><button class="button compact" type="button" id="live-system-start" disabled>系统窗口选择器</button><button class="button accent" type="submit" form="live-crop-form" id="live-apply-crop" disabled>应用区域并开始识别</button><button class="button compact" type="button" id="live-align" disabled>框选画面</button><button class="button compact" type="button" id="live-show-guide" aria-pressed="true" disabled>牌点定位框</button><button class="button compact" type="button" id="live-stop" disabled>停止捕获</button></div>
+          <p class="feedback" id="live-capture-feedback" role="status">请在 Windows 桌面版中打开实时观察。</p>
+          <div class="live-anchor-tools">
+            <label class="setting"><span>校准座位</span><select id="live-anchor-seat" disabled><option value="0">庄家</option><option value="1">座位 1</option><option value="2">座位 2</option><option value="3">座位 3</option><option value="4" selected>座位 4</option><option value="5">座位 5</option><option value="6">座位 6</option><option value="7">座位 7</option></select></label>
+            <label class="setting" id="live-anchor-slot-field" hidden><span>牌位</span><select id="live-anchor-slot" disabled><option value="1">第 1 张</option><option value="2">第 2 张 · 定方向</option><option value="3">第 3 张 · 调牌扇</option></select></label>
+            <div id="live-anchor-orientation" class="live-anchor-orientation" hidden><label class="live-check"><input type="checkbox" id="live-anchor-flip"> 旋转 180°</label><label class="live-check"><input type="checkbox" id="live-anchor-invert"> 浅字深底</label></div>
+            <button class="button compact" type="button" id="live-anchor-pick" aria-pressed="false" disabled>点选首张牌点</button><button class="button compact" type="button" id="live-anchor-remove" disabled hidden>清除当前牌点</button><button class="button compact" type="button" id="live-anchor-reset" disabled>清除座位校准</button>
+            <p class="model-note" id="live-anchor-note">识别启动后，如果定位框偏离牌点，先选座位，再点该座第一张可见牌左上角的数字或字母中心。</p>
+          </div>
+          <details class="shortcuts" id="live-calibration"><summary>校准与捕获说明</summary>
+            <p>定位从内置桌面参考布局起步。切换桌面视图、缩放或裁切后，可重新框选完整牌桌画面，再调整偏离的座位。</p>
+            <p>请让目标窗口保持可见，把观察器放在旁边。目标窗口最小化、遮挡或切换画面时，需核对是否漏牌。原生捕获预览若为空，可改用「系统窗口选择器」。</p>
+            <p>定位框应围住牌左上角的数字或字母。点选首张牌点只校准位置，识牌和账本仍使用原有流程。</p>
+            <p>自定义布局可从庄家和至少一位玩家的首张牌开始。座位从画面右向左编号，最多 9 个。未参与的座位可以等有牌再标。方向与明暗设置在下一次点选时应用到该座。</p>
+            <p>通过人工核实牌面后从实时画面学习的字形，可随当前自定义布局保存。录像字形训练页保存的是共享字形库。</p>
+            <form id="live-crop-form" class="live-crop-form">
+              <label class="setting"><span>左上 X</span><input id="live-crop-x" type="number" min="0" step="1" value="0" required disabled></label>
+              <label class="setting"><span>左上 Y</span><input id="live-crop-y" type="number" min="0" step="1" value="0" required disabled></label>
+              <label class="setting"><span>宽</span><input id="live-crop-width" type="number" min="1" step="1" required disabled></label>
+              <label class="setting"><span>高</span><input id="live-crop-height" type="number" min="1" step="1" required disabled></label>
+            </form>
+          </details>
+        </div>
+      </section>
+      <aside class="panel" aria-labelledby="live-timing-title">
+        <div class="panel-head"><div><p class="eyebrow">RUNTIME TIMING</p><h2 id="live-timing-title">本机运行耗时</h2></div></div>
+        <div class="analysis-body">
+          <dl class="live-timings"><div><dt>已处理帧</dt><dd id="live-frames">0</dd></div><div><dt>取帧／识别</dt><dd id="live-frame-time">—</dd></div><div><dt>取帧至页面更新 P95</dt><dd id="live-pipeline-time">—</dd></div><div><dt>连续帧确认</dt><dd id="live-confirmation-time">—</dd></div><div><dt>全部座位分析</dt><dd id="live-forecast-time">—</dd></div><div><dt>最后一次识牌</dt><dd id="live-last-detection">—</dd></div></dl>
+          <h3 class="live-subhead">识牌诊断</h3>
+          <dl class="live-timings"><div><dt>收到的窗口帧</dt><dd id="live-preview-frames">0</dd></div><div><dt>最近两帧到达间隔</dt><dd id="live-frame-interval">—</dd></div><div><dt>最新帧候选牌点</dt><dd id="live-scan-candidates">—</dd></div><div><dt>确认的自动牌点</dt><dd id="live-scan-confirmed">0</dd></div></dl>
+          <p class="model-note live-diagnostics-note" id="live-diagnostics-note">选择窗口后先检查预览，再应用校准区域。</p>
+          <p class="model-note">本机窗口模式从请求画面计时，系统窗口模式从读取已送达画面计时。确认时间是识牌器连续两次匹配的间隔。直播源到屏幕的延迟需单独测量。</p>
+          <p class="model-note">选择目标窗口后才会读取像素。画面在本机处理。</p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="panel" aria-labelledby="live-ledger-title">
+      <div class="panel-head"><div><p class="eyebrow">CURRENT ROUND</p><h2 id="live-ledger-title">本局牌位账本</h2></div></div>
+      <div class="live-ledger-scroll" tabindex="0" aria-label="可滚动的本局账本"><table class="live-ledger"><thead><tr><th scope="col">位置</th><th scope="col">手牌</th><th scope="col">牌位</th><th scope="col">牌面</th><th scope="col">来源</th><th scope="col">操作</th></tr></thead><tbody id="live-ledger"></tbody></table></div>
+    </section>
+    <footer class="footer"><p>牌面识别可使用自定义桌型。概率推算使用现有 8 副牌模型。复用同一布局换到另一桌时，可另起牌靴记录。</p><a href="https://portail.assets.lotoquebec.com/ressources/assets/v3/assets/blt8296e79a7001648c/blt7a444d5d164b7f61/6470e86bb851cf1d70e69f21/Blackjack-en.pdf" target="_blank" rel="noreferrer">Classic 参考规则 ↗</a></footer>
+  </main>
+  <dialog id="live-confirm" aria-labelledby="live-confirm-title"><form method="dialog"><h2 id="live-confirm-title"></h2><p id="live-confirm-copy"></p><div class="panel-actions"><button class="button" value="cancel" autofocus>取消</button><button class="button accent" value="confirm">确认</button></div></form></dialog>
+</body>
+</html>
