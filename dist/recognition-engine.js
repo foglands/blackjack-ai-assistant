@@ -310,7 +310,7 @@
   function plan(profile, crop, live) {
     return profile.slots.map(slot => {
       const bases = [slot, ...(slot.variants ?? []).map(variant => ({ ...slot, ...variant }))];
-      const displaced = live ? bases.filter(view => !view.holeReveal).flatMap(view => live.offsets.map(([dx, dy]) => ({
+      const displaced = live ? bases.filter(view => !view.holeReveal && !view.fixedView).flatMap(view => live.offsets.map(([dx, dy]) => ({
         ...view, x: view.x + dx, y: view.y + dy, shifted: true,
       })).filter(view => fits(view, profile))) : [];
       const samplePhase = live && Number.isFinite(slot.rankPhaseY) && Math.abs(slot.rankPhaseY) <= 0.5 && slot.rankPhaseY !== 0
@@ -476,7 +476,7 @@
     const shifts = slot.slot > 1 ? [...relocationShifts, ...extraRelocationShifts] : relocationShifts;
     let best = null, evidence = null, rival = null;
     for (const base of slot.bases) {
-      if (base.pairedOnly || base.invert) continue;
+      if (base.pairedOnly || base.invert || base.fixedView) continue;
       const key = `${base.x}:${base.y}`;
       if (baseKeys.has(key)) continue;
       baseKeys.add(key);
@@ -877,7 +877,7 @@
     }
 
     function playerFan(slot) {
-      if (slot.seat === 0 || slot.slot <= 2) return null;
+      if (slot.seat === 0 || slot.slot <= 2 || slot.followFan === false) return null;
       const previous = locations.get(`${slot.seat}:${slot.slot - 1}`);
       const earlier = locations.get(`${slot.seat}:${slot.slot - 2}`);
       if (!previous || !earlier) return null;

@@ -5,7 +5,8 @@
   const presetStorage = 'blackjack-lab:table-layouts:v1';
   const classic = { id: 'classic', name: 'Classic 参考桌型', builtin: true, seatCount: 7 };
   const classicClose = { id: 'classic-close', name: 'Classic 近景校准（试用）', builtin: true, seatCount: 7 };
-  const builtins = [classic, classicClose];
+  const classicFront = { id: 'classic-front', name: 'Classic 全桌 · 牌点自定位', builtin: true, seatCount: 7 };
+  const builtins = [classic, classicClose, classicFront];
   const anchorNames = ['first', 'second', 'third'];
   const maxPresets = 24;
 
@@ -74,7 +75,7 @@
   }
 
   function layoutKey(preset) {
-    return preset.id === classicClose.id ? `${layoutStorage}:${preset.id}` : layoutStorage;
+    return preset.id === classic.id ? layoutStorage : `${layoutStorage}:${preset.id}`;
   }
 
   function loadLayout(preset) {
@@ -109,12 +110,17 @@
     const publicModel = root.BlackjackPublicGlyphs;
     const publicGlyphsAvailable = Boolean(publicModel?.templates && Object.keys(publicModel.templates).length);
     const referenceProfile = root.BlackjackLiveProfile.forCapture(root.BlackjackRecognitionProfile, bank.augment);
-    const closeProfile = root.BlackjackLiveProfile.forCloseCapture(referenceProfile, bank.augment, publicModel?.templates?.['10']);
+    const publicTens = publicModel?.templates?.['10'];
+    const builtinProfiles = new Map([
+      [classic.id, referenceProfile],
+      [classicClose.id, root.BlackjackLiveProfile.forCloseCapture(referenceProfile, bank.augment, publicTens)],
+      [classicFront.id, root.BlackjackLiveProfile.forFrontCapture(referenceProfile, bank.augment, publicTens)],
+    ]);
     let profile, recognition, sampled;
     const sharedGlyphs = bank.load();
     const { presets, selected } = loadPresets();
     let preset = [...builtins, ...presets].find(item => item.id === selected) ?? classic;
-    let baseProfile = preset.id === classicClose.id ? closeProfile : referenceProfile;
+    let baseProfile = builtinProfiles.get(preset.id) ?? referenceProfile;
     let dirty = false;
     let customProjection = null;
     const glyphKey = () => preset.builtin ? bank.storageKey : `${bank.storageKey}:${preset.id}`;
@@ -186,7 +192,7 @@
     function changePreset(next) {
       if (preset.id === next.id) return;
       preset = next;
-      baseProfile = preset.id === classicClose.id ? closeProfile : referenceProfile;
+      baseProfile = builtinProfiles.get(preset.id) ?? referenceProfile;
       savedLayout = loadLayout(preset);
       dirty = !next.builtin && !presets.some(item => item.id === next.id);
       crop = map = null;
@@ -501,7 +507,7 @@
       const projected = projectAnchors(points, rect);
       const geometry = projected.ok ? projected.profile : baseProfile;
       const openings = geometry.slots.filter(slot => slot.slot === 1);
-      const located = new Map((map && preset.id === classicClose.id ? recognition.openingLocations?.() ?? [] : [])
+      const located = new Map((map && geometry.liveSearch?.relocate ? recognition.openingLocations?.() ?? [] : [])
         .map(point => [point.seat, point]));
       const guides = openings.map(slot => located.has(slot.seat) ? { ...slot, ...located.get(slot.seat) } : slot);
       return guideFor(geometry, rect, guides, slot => {

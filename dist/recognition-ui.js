@@ -457,10 +457,11 @@
   }
 
   function selectedProfile() {
-    if (layoutPicker.value !== 'classic-close') return reference;
+    if (!['classic-close', 'classic-front'].includes(layoutPicker.value)) return reference;
     const live = window.BlackjackLiveProfile;
     const augment = glyphBank.augment;
-    return live.forCloseCapture(live.forCapture(reference, augment), augment, window.BlackjackPublicGlyphs?.templates?.['10']);
+    const factory = layoutPicker.value === 'classic-front' ? live.forFrontCapture : live.forCloseCapture;
+    return factory(live.forCapture(reference, augment), augment, window.BlackjackPublicGlyphs?.templates?.['10']);
   }
 
   async function playRecognition(fromStart = false) {
@@ -500,6 +501,7 @@
         startedAt = start;
         video.currentTime = startedAt;
         $('active-replay-layout').textContent = layoutPicker.selectedOptions[0].textContent;
+        $('profile-size').textContent = `${profile.width} × ${profile.height}`;
         resetMetrics();
       } catch (error) {
         fail(`无法初始化识牌器。${error.message || ''}`);
@@ -550,7 +552,7 @@
     validFile = true;
     video.hidden = false;
     $('video-placeholder').hidden = true;
-    phaseTo('ready', `已读到 ${videoWidth} × ${videoHeight} 的横向录像。核对画面布局与参考一致后开始识牌。`);
+    phaseTo('ready', `已读到 ${videoWidth} × ${videoHeight} 的横向录像。若画面正面拍到完整桌面，请选「Classic 全桌 · 牌点自定位」。`);
     paintMetrics();
   });
 
@@ -568,7 +570,10 @@
       target = { ...target, slot: nextOpenSlot(target.seat) ?? 1 };
       paintEvents();
     }
-    phaseTo('complete', count ? `识别结束，记录 ${played.length} 局、${count} 张牌。` : '识别结束。没有读到符合此布局的牌面。');
+    const emptyMessage = layoutPicker.value === 'classic-front'
+      ? '识别结束，未确认牌面。请核对录像是否为完整游戏画面，并从有发牌的时间开始重扫。'
+      : '识别结束，未确认牌面。正面全桌画面可切换「Classic 全桌 · 牌点自定位」后从起点重扫。';
+    phaseTo('complete', count ? `识别结束，记录 ${played.length} 局、${count} 张牌。` : emptyMessage);
     paintMetrics(true);
   });
 

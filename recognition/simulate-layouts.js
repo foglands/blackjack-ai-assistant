@@ -301,6 +301,24 @@ assert.deepEqual(clone(restored.api.getCrop()), full);
 ok(restored.api.selectLayout('classic'), 'return to original Classic layout');
 assert.deepEqual(clone(restored.api.getCrop()), wideCrop);
 
+const front = createHarness();
+front.open(2330, 1306, 'Classic full-table capture');
+ok(front.api.selectLayout('classic-front'), 'select the full-table preset');
+assert.equal(front.api.getCrop(), null, 'the full-table preset must not inherit a saved crop');
+front.frame(2330, 1306);
+assert.equal(front.received.length, 1, 'preview receives a captured frame');
+assert.equal(front.reads.length, 0, 'preview alone must not report a processed recognition frame');
+ok(front.api.setCrop(full), 'apply the entire window for full-table capture');
+assert.equal(front.api.getGuide().length, 8, 'all seven opening seats and the dealer can be scanned');
+front.frame(2330, 1306);
+assert.equal(front.reads.length, 1, 'the selected crop starts actual recognition');
+const frontRestored = createHarness();
+frontRestored.open(2330, 1306, 'Restarted full-table capture');
+assert.equal(frontRestored.api.layoutStatus().id, 'classic-front');
+assert.deepEqual(clone(frontRestored.api.getCrop()), full);
+ok(frontRestored.api.selectLayout('classic'), 'switch back to the original wide preset');
+assert.deepEqual(clone(frontRestored.api.getCrop()), wideCrop);
+
 const rollover = createHarness();
 const rolloverLayout = { name: 'Synthetic rollover', crop: full, points: [
   [0, 1, { x: 0.58, y: 0.56, width: 0.07, height: 0.08 }],

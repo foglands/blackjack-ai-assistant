@@ -120,7 +120,85 @@
     return { ...reference, slots, templates, liveSearch: { ...reference.liveSearch, relocate: true } };
   }
 
-  const api = { fromReplay, forCapture, forCloseCapture };
+  function forFrontCapture(reference, augment, publicTens) {
+    const close = forCloseCapture(reference, augment, publicTens);
+    // Full-table camera view. These are leading rank corners in screen order,
+    // rather than chip positions or positions inferred from the table number.
+    const openings = [
+      [[1098, 803], [1203, 804], [1244, 805], [1270, 805]],
+      [[1621, 929], [1615, 902], [1567, 895]],
+      [[1485, 997], [1475, 952]],
+      [[1340, 1036], [1358, 986]],
+      [[1151, 1046], [1190, 997]],
+      [[965, 1032], [1042, 992], [1105, 957]],
+      [[816, 990], [891, 962]],
+      [[699, 914], [779, 902]],
+    ];
+    const shear = [[0, 0], [-0.33, 1.43], [-0.22, 0.88], [-0.14, 0.49],
+      [-0.03, 0.12], [0.13, -0.50], [0.25, -0.87], [0.34, -1.48]];
+    const offsets = [[0, 0], [-17, -23], [-12, -28], [-3, -28], [13, -27], [19, -23], [30, -19], [38, -16]];
+    // A few positions have a different slant or a partly covered leading
+    // corner as the dealer fans the hand. Try these local views before searching.
+    const localViews = {
+      '0:1': [[1165, 804, 33, 23, 0, 0], [1169, 804, 37, 25, -0.12, 0],
+        [1111, 830, 38, 23, 0.20, -0.40, 120, true]],
+      '0:2': [[1203, 808, 49, 28, 0, 0.55], [1203, 804, 42, 29, 0, 0.30],
+        [1211, 808, 49, 26, 0.18, -0.50, 125]],
+      '0:3': [[1244, 809, 49, 28, 0, 0.30]],
+      '0:4': [[1274, 805, 42, 29, 0.12, 0.30]],
+      '1:1': [[1629, 929, 33, 22, -0.45, 1.43], [1621, 929, 39, 25, -0.33, 1.13]],
+      '1:2': [[1611, 898, 32, 26, -0.45, 1.65, 168], [1688, 920, 43, 22, -0.45, 1.65, 136, true]],
+      '1:3': [[1561, 894, 28, 20, -0.55, 1.68], [1640, 910, 22, 25, -0.55, 1.68, 152, true]],
+      '2:1': [[1497, 997, 42, 29, -0.34, 0.88]],
+      '2:2': [[1499, 952, 42, 29, -0.34, 0.88]],
+      '3:1': [[1342, 1036, 46, 29, -0.05, 0.30, 136]],
+      '3:2': [[1362, 986, 49, 28, -0.14, 0.19], [1366, 986, 49, 28, -0.02, 0.49]],
+      '4:1': [[1155, 1046, 49, 28, -0.03, -0.18]],
+      '4:2': [[1198, 997, 49, 28, -0.03, 0.12]],
+      '5:1': [[965, 1032, 49, 28, 0.01, -0.50]],
+      '5:2': [[1050, 996, 49, 28, 0.13, -0.80]],
+      '6:1': [[812, 990, 42, 29, 0.25, -1.17]],
+      '6:2': [[899, 962, 42, 29, 0.37, -0.87]],
+      '7:1': [[697, 920, 37, 22, 0.34, -1.70], [699, 914, 49, 28, 0.34, -1.78],
+        [707, 918, 42, 29, 0.34, -2.03]],
+      '7:2': [[784, 905, 35, 22, 0.58, -1.68, 168]],
+    };
+    const scaleX = reference.width / 2330, scaleY = reference.height / 1306;
+    const slots = [];
+    for (const [seat, corners] of openings.entries()) {
+      const [u, v] = shear[seat];
+      for (let slot = 1; slot <= (seat === 0 ? corners.length : 5); slot++) {
+        const distance = Math.max(0, slot - corners.length);
+        const [x, y] = corners[slot - 1] ?? corners.at(-1);
+        const region = {
+          seat, slot, x: (x + offsets[seat][0] * distance) * scaleX,
+          y: (y + offsets[seat][1] * distance) * scaleY,
+          w: seat === 0 ? 33 : 39, h: seat === 0 ? 23 : 25, u, v,
+          minBright: 0.40, inkCeiling: 152,
+          minScore: distance ? 0.88 : 0.81, minMargin: distance ? 0.14 : 0.10,
+        };
+        const pair = { w: 52, h: 30, pairedOnly: true, minBright: 0.36, minPairedScore: 0.84 };
+        const variants = [pair, ...(localViews[`${seat}:${slot}`] ?? []).map(([x, y, w, h, u, v, inkCeiling = 152, flip = false]) => ({
+          x: x * scaleX, y: y * scaleY, w, h, u, v, inkCeiling, flip, minBright: 0.37, minMargin: 0.085,
+          fixedView: flip,
+        }))];
+        if (seat === 0 && slot === 3) {
+          variants.push({ ...pair, x: 1244 * scaleX, y: 806 * scaleY, w: 38, h: 20,
+            inkCeiling: 160, minBright: 0.32, minPairedScore: 0.81, fixedView: true });
+          variants.push({ ...pair, x: 1268 * scaleX, y: 836 * scaleY, w: 38, h: 20, v: 0.25,
+            flip: true, minBright: 0.32, fixedView: true });
+        }
+        if (seat === 1 && slot === 3) region.followFan = false;
+        slots.push({ ...region, variants });
+      }
+    }
+    // The opposite corner can keep both digits readable after the hit cards overlap.
+    const oppositeTen = [63488, 63736, 63736, 31230, 15238, 15239, 15239, 15239, 15235, 15111,
+      15111, 15111, 15111, 15239, 15239, 29447, 15239, 14798, 14798, 252];
+    return { ...close, slots, templates: { ...close.templates, 10: [...close.templates['10'], oppositeTen] } };
+  }
+
+  const api = { fromReplay, forCapture, forCloseCapture, forFrontCapture };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.BlackjackLiveProfile = api;
 }(globalThis));

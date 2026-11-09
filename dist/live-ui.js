@@ -209,7 +209,8 @@
     const missing = layout.missingPrimaryRanks ?? [];
     const glyphNote = missing.length ? ` 首选字形缺少 ${missing.join('、')}。${layout.publicGlyphs ? '已启用公开样本作为辅助。' : '看到这些牌时可手动选牌点后保存字形。'}` : '';
     if (layout.builtin) {
-      const trackingNote = layout.id === 'classic-close' ? '每局会自动重新寻找各座位的首牌位置。' : '';
+      const trackingNote = layout.id === 'classic-front' ? '适用于正面看见完整桌面和两侧座位的取景，按画面定位牌点。'
+        : layout.id === 'classic-close' ? '每局会自动重新寻找各座位的首牌位置。' : '';
       setText('live-layout-note', trackingNote + (aligned
         ? '要切换布局，先点「框选画面」暂停自动识牌。各布局的牌靴记录分开保存。'
         : '参考布局适用于相近的桌面取景。不同取景可新建自定义布局，名称仅用于区分。') + glyphNote);
@@ -789,8 +790,8 @@
     if (['error', 'cancelled', 'canceled', 'unavailable'].includes(value)) choosing = false;
     if (value === 'capturing' && aligned) syncLocks();
     if (value === 'paused' && aligned) markGap('捕获暂时中断，已保留牌面并改为部分跑数。', 'auto');
-    const sourceStatus = value === 'waiting' ? '等待清桌' : value === 'paused' ? '捕获暂缓' : '正在观察';
-    const badge = source ? aligned ? sourceStatus : '等待校准' : choosing ? '等待选择窗口' : '尚未共享窗口';
+    const sourceStatus = value === 'waiting' ? '等待清桌' : value === 'paused' ? '捕获暂缓' : '识牌运行中';
+    const badge = source ? aligned ? sourceStatus : '仅预览 · 未启动识牌' : choosing ? '等待选择窗口' : '尚未共享窗口';
     setText('live-capture-state', badge);
     if (message) captureMessage(message, value === 'error' || value === 'unavailable');
     paintCaptureControls();
@@ -808,7 +809,9 @@
     setText('live-source-size', `${source.width} × ${source.height}`);
     const layout = layoutStatus();
     enterAlignment(capture.getCrop() ?? layout.crop ?? wholeWindow);
-    captureMessage(layout.builtin ? '窗口已连接，当前只预览画面。检查定位框后，点「应用区域并开始识别」。'
+    captureMessage(layout.id === 'classic-front'
+      ? '窗口已连接，目前仅预览。画面只含完整游戏时可点「整窗取景」，再点「应用区域并开始识别」。有浏览器边栏时先框选游戏画面。'
+      : layout.builtin ? '窗口已连接，目前仅预览。检查定位框后，点「应用区域并开始识别」。'
       : '窗口已连接。请核对自定义取景和牌点定位，达到启动条件后再开始识牌。');
   }
 
@@ -842,6 +845,7 @@
     $('live-system-start').disabled = !systemAvailable || choosing || Boolean(source);
     $('live-stop').disabled = !capture || (!source && !choosing);
     $('live-align').disabled = !source;
+    $('live-full-crop').disabled = !source || aligned || preview.hidden;
     $('live-apply-crop').disabled = !source || aligned || preview.hidden || (!layout.builtin && !layout.canStart);
     $('live-apply-crop').textContent = aligned ? '识别已启动' : layout.builtin || layout.canStart ? '应用区域并开始识别' : '等待标记首牌';
     $('live-show-guide').disabled = !source || preview.hidden;
@@ -862,7 +866,8 @@
     const scan = scanDiagnostics;
     const waiting = captureStatus === 'waiting';
     const paused = captureStatus === 'paused';
-    setText('live-step-recognition-note', !aligned ? '尚未启动' : waiting ? '等待旧牌清走' : paused ? '捕获暂缓' : '扫描中');
+    setText('live-step-recognition-note', !aligned ? isReady ? '仅预览 · 识牌未启动' : '尚未启动'
+      : waiting ? '等待旧牌清走' : paused ? '捕获暂缓' : '正在分析画面');
     setText('live-preview-frames', previewFrames.toLocaleString('zh-CN'));
     setText('live-frame-interval', ms(frameDeliveryMs));
     const publicLabel = publicConfirmed ? ` · 公开样本辅助 ${publicConfirmed.toLocaleString('zh-CN')}` : '';
@@ -873,12 +878,17 @@
     let note = '选择窗口后先检查预览，再应用校准区域。';
     if (source && !aligned) note = !layout.builtin && !layout.canStart
       ? '当前只预览。请框选牌桌，再标记庄家和至少一位玩家的第 1 张牌点。'
-      : '先确认定位框围住每座第一张牌的数字或字母。偏离时可在预览中校准，再点「应用区域并开始识别」。';
+      : layout.id === 'classic-front' ? '当前只预览。若窗口里就是完整游戏画面，点「整窗取景」，再点「应用区域并开始识别」。'
+        : '先确认定位框围住每座第一张牌的数字或字母。偏离时可在预览中校准，再点「应用区域并开始识别」。';
     else if (aligned && waiting) note = '正在等上一局旧牌清走。清桌后会继续识别。';
     else if (aligned && paused) note = '捕获暂缓。请确认所选窗口仍可见。';
     else if (aligned && !scan) note = '识牌已启动，等待可分析的画面。';
     else if (aligned && scan.checked === 0) note = '当前帧无待扫描的牌位。新一局若仍无结果，请确认已清桌或点「下一局」。';
-    else if (aligned && scan.glyphs === 0) note = '当前帧未读到新的牌点。若账本仍漏了明牌，先看对应定位框是否围住牌点。首牌找不到时，后面的牌位可能在等待。';
+    else if (aligned && scan.glyphs === 0) {
+      note = layout.builtin && layout.id !== 'classic-front' && autoConfirmed === 0 && frameCount >= 8
+        ? '已处理画面，仍未确认牌点。若正面全桌画面已有明牌，请点「框选画面」，切换「Classic 全桌 · 牌点自定位」，再应用识别区域。'
+        : '当前帧未读到新的牌点。若账本仍漏了明牌，先看对应定位框是否围住牌点。首牌找不到时，后面的牌位可能在等待。';
+    }
     else if (aligned && (scan.occupiedUnmatched > 0 || scan.lowConfidence > 0) && scan.matched === 0) note = '框里有牌点，但字形匹配不足。请核对框内是否只包含数字或字母。可手动选择实际牌面，再点「用已核实牌面校准」。';
     else if (aligned && scan.matched > 0) note = '已读到候选牌点。满足连续帧确认的结果会写入本局账本。';
     setText('live-diagnostics-note', note);
@@ -899,7 +909,7 @@
     $('live-calibration').open = true;
     preview.classList.add('is-aligning');
     preview.classList.remove('is-anchoring');
-    setText('live-capture-state', '等待校准');
+    setText('live-capture-state', '仅预览 · 未启动识牌');
     paintCrop();
     paintCaptureControls();
     paintEditor();
@@ -1095,7 +1105,7 @@
       preview.classList.remove('is-aligning');
       overlay.hidden = true;
       $('live-calibration').open = false;
-      setText('live-capture-state', '正在观察');
+      setText('live-capture-state', '识牌运行中');
       captureMessage(layout.builtin ? '识牌已启动。定位框应围住牌左上角的数字或字母，扫描状态见右侧诊断。'
         : '自定义识牌已启动。请核对定位框，未覆盖的座位或牌位可手动录入。');
       syncLocks();
@@ -1155,6 +1165,12 @@
   layoutPublicGlyphs.addEventListener('change', togglePublicGlyphs);
   listen('live-stop', () => { capture?.stop(); clearSource(); });
   listen('live-align', () => enterAlignment(capture?.getCrop() ?? crop));
+  listen('live-full-crop', () => {
+    if (!source || aligned) return;
+    crop = wholeWindow;
+    paintCrop();
+    paintCaptureControls();
+  });
   listen('live-show-guide', () => {
     showGuide = !showGuide;
     $('live-show-guide').setAttribute('aria-pressed', String(showGuide));
