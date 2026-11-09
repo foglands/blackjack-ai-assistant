@@ -2,14 +2,19 @@
 
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
+const { existsSync } = require('node:fs');
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const { parseArgs, promisify } = require('node:util');
 
 const run = promisify(execFile);
+const lconnect = 'C:/Program Files/Lian-Li/L-Connect 3/x64';
 const usage = 'Usage: node recognition/benchmark.js --video <clip.mp4> [--truth <truth.json>] [--csv <new-file.csv>] [--ffmpeg <exe>] [--ffprobe <exe>] [--json]';
 
-function defaultExecutable(name) { return name; }
+function defaultExecutable(name) {
+  const bundled = path.join(lconnect, name + '.exe');
+  return process.platform === 'win32' && existsSync(bundled) ? bundled : name;
+}
 
 async function probe(video, ffprobe) {
   const { stdout } = await run(ffprobe, [

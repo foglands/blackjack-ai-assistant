@@ -313,7 +313,12 @@
       const displaced = live ? bases.filter(view => !view.holeReveal).flatMap(view => live.offsets.map(([dx, dy]) => ({
         ...view, x: view.x + dx, y: view.y + dy, shifted: true,
       })).filter(view => fits(view, profile))) : [];
-      const views = [...bases, ...displaced].map(view => compile({
+      const samplePhase = live && Number.isFinite(slot.rankPhaseY) && Math.abs(slot.rankPhaseY) <= 0.5 && slot.rankPhaseY !== 0
+        ? { ...slot, y: slot.y + slot.rankPhaseY, phaseFallback: true,
+          minScore: Math.max(0.86, slot.minScore ?? 0), minMargin: Math.max(0.12, slot.minMargin ?? 0) }
+        : null;
+      const phaseViews = samplePhase && fits(samplePhase, profile) ? [samplePhase] : [];
+      const views = [...bases, ...displaced, ...phaseViews].map(view => compile({
         ...view, x: view.x - crop.x, y: view.y - crop.y, cropX: crop.x, cropY: crop.y,
       }, crop.width));
       return { ...slot, views, bases, crop, key: `${slot.seat}:${slot.slot}` };
@@ -554,12 +559,15 @@
     const priorScores = keepScores ? new Map() : null;
     for (const view of slot.views) {
       if (view.holeReveal && bypass) continue;
+      // The alternate pixel grid only rescues unread single ranks. Keep a
+      // normal match or evidence of a two-digit rank ahead of this retry.
+      if (view.phaseFallback && (best || bestTen || tenEvidence || !hasLight(frame, view))) continue;
       // Direct calibrated variants take priority. A cheap light check
       // prevents the displacement search from scanning blank felt fully.
       const pairOnly = view.shifted && best && !best.shifted;
       if (view.shifted && ((bestTen && !bestTen.shifted) || (pairOnly && !tens.length))) break;
       if (view.shifted && !hasLight(frame, view)) continue;
-      const pair = tens.length ? normalizeTen(frame, view, true) : null;
+      const pair = tens.length && !view.phaseFallback ? normalizeTen(frame, view, true) : null;
       const glyph = pair ?? (pairOnly || view.pairedOnly ? null : normalize(frame, view, true));
       if (!glyph) continue;
       // On an upright reveal, the card face extends below and to the right of
@@ -588,7 +596,7 @@
       const signature = priorScores ? glyph.rows.join(',') : null;
       const guess = priorScores?.get(signature) ?? classify(glyph.rows, singles, area);
       priorScores?.set(signature, guess);
-      const strict = view.shifted || bypass;
+      const strict = view.shifted || view.phaseFallback || bypass;
       const scoreFloor = Math.max(view.minScore ?? 0.72, strict ? options.minScore : 0);
       const marginFloor = Math.max(view.minMargin ?? 0.075, strict ? options.minMargin : 0);
       if (guess.score < scoreFloor || guess.margin < marginFloor) continue;
@@ -613,7 +621,7 @@
     let rival = null;
     const checked = new Set();
     for (const view of slot.views.slice(0, fallbackProbeLimit)) {
-      if (view.holeReveal) continue;
+      if (view.holeReveal || view.phaseFallback) continue;
       if (!hasLight(frame, view)) continue;
       const pair = tens.length || fallback.tens.length ? normalizeFallback(frame, view, true, true) : null;
       const group = pair ? fallback.tens : fallback.singles;

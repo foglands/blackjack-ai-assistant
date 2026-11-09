@@ -1,6 +1,23 @@
 (function (root) {
   'use strict';
 
+  // Reviewed rank masks from the opening round of a local Classic recording.
+  // The two later test intervals supplied no training pixels.
+  const closeGlyphs = {
+    "2": [[32,1020,2014,3855,7695,7695,15,15,30,60,120,496,960,1920,3840,15872,32512,65534,24574,2]],
+    "3": [[4080,8190,15902,6159,31,31,30,62,504,376,62,30,24607,61471,63519,63519,64766,32764,8168,512],[992,4094,3870,7198,15,14,14,124,248,120,120,60,24606,61502,28734,61500,32380,8184,8176,384]],
+    "4": [[14,62,124,124,496,992,4032,7808,31804,32316,32316,65340,4094,255,254,248,240,240,496,224]],
+    "5": [[7808,8190,8191,8063,7680,15360,15360,16000,16368,8188,126,62,30,30,49182,61470,63518,32504,16376,120]],
+    "6": [[192,192,960,1984,1984,3968,8064,8064,16376,32316,32316,63518,63519,63519,63519,30750,30750,16380,992,992],[14,62,124,240,240,1504,2016,4064,8188,31262,30750,30735,61455,28687,61455,28702,30844,15612,16368,896],[3,15,126,252,504,504,1008,4080,8188,15934,30782,61455,61455,61455,61454,61454,31774,32766,8188,32]],
+    "8": [[32,4064,8176,8176,30720,30744,63544,14392,8184,4088,4088,3992,7936,7680,7174,7687,7943,7943,4094,720]],
+    "9": [[2044,2044,14366,30735,30735,61455,61455,63502,30748,30748,16380,16380,1008,480,480,960,960,1792,1792,1792],[1008,4092,7742,15374,14351,28687,28686,30734,30734,15390,15390,8060,4080,4032,3968,3840,15872,30720,61440,24576],[60,510,510,7711,6159,12295,12295,24582,61440,63544,63544,32736,16320,7936,7936,7680,4096,57344,57344,49152]],
+    "A": [[7680,15872,16128,16128,16256,15744,14528,14432,14432,30816,30968,16344,31758,31758,30734,28703,30724,63488,63488,57344]],
+    "Q": [[128,8048,14344,14344,28684,28684,28678,24582,24582,64526,64526,29582,24654,24700,12348,4156,3324,3324,845,3]],
+    "K": [[31788,31870,31870,31870,14456,30960,31200,32704,32704,32704,32704,15584,14432,14432,14456,30780,31804,64572,64572,6207],[15104,16156,7711,7711,7228,7288,7408,8160,16320,16352,16352,14816,14560,30944,30832,63600,63608,30840,124,28],[256,448,391,262,262,536,792,3936,4032,4032,4032,4544,12480,12480,12480,45280,61664,20960,496,32]],
+    "J": [[16,31,30,30,28,28,28,56,56,48,112,112,224,224,57568,57824,62400,32512,32512,3072]],
+  };
+  const filmedTens = [[32768,32768,49278,49279,49255,49347,32963,32771,32771,32867,32963,32963,32963,32835,32839,32962,32963,32891,32830,32768]];
+
   function fromReplay(replay) {
     const slots = replay.slots.map(slot => ({ ...slot }));
     // Unseen positions use the perspective of neighboring seats and a stricter
@@ -28,11 +45,18 @@
 
   function forCapture(replay, augment) {
     const reference = fromReplay(replay);
-    return { ...reference, templates: augment(reference.templates),
+    // Strongly sheared views can lose thin strokes on the default pixel grid.
+    // These wide-preset slots get a second sampling phase at the same anchor.
+    const phases = { '3:2': 0.5, '7:1': 0.25 };
+    const slots = reference.slots.map(slot => {
+      const rankPhaseY = phases[`${slot.seat}:${slot.slot}`];
+      return rankPhaseY ? { ...slot, rankPhaseY } : slot;
+    });
+    return { ...reference, slots, templates: augment(reference.templates),
       liveSearch: { minScore: 0.83, minMargin: 0.10 }, maxFrameGapSeconds: 0.42 };
   }
 
-  function forCloseCapture(reference, publicTens = []) {
+  function forCloseCapture(reference, augment = samples => samples, publicTens = []) {
     // Geometry from a 2332 × 1308 Classic close view. This preset has its
     // own calibration so the wider Classic reference remains available.
     const centers = [
@@ -46,7 +70,7 @@
       return { x: x * scaleX, y: y * scaleY };
     }
     const openingSlots = reference.slots.filter(slot => slot.slot === 1);
-    const slots = reference.slots.map(slot => {
+    const slots = reference.slots.map(({ rankPhaseY, ...slot }) => {
       const center = centers[slot.seat]?.[slot.slot - 1];
       if (slot.seat === 0) {
         if (slot.slot === 2) {
@@ -89,7 +113,10 @@
       return { ...calibrated, ...flip, minBright: 0.33, variants };
     });
     const templates = { ...reference.templates };
-    templates['10'] = [...(templates['10'] ?? []), ...publicTens];
+    for (const [rank, rows] of Object.entries(augment(closeGlyphs))) {
+      templates[rank] = [...(templates[rank] ?? []), ...rows];
+    }
+    templates['10'] = [...(templates['10'] ?? []), ...publicTens, ...filmedTens];
     return { ...reference, slots, templates, liveSearch: { ...reference.liveSearch, relocate: true } };
   }
 

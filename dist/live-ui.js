@@ -397,15 +397,15 @@
     const beforeShoe = summary.shoe;
     const splitBefore = projection.seats.filter(seat => seat.hands.length === 2).map(seat => seat.seat);
     if (!act({ type: 'undo' }, '已撤销最近一次人工修改。')) return;
-    const removedSplit = splitBefore.some(seat => !splitSeat(seat));
-    if (summary.shoe !== beforeShoe) capture?.startShoe?.(summary.mode);
-    else if (removedSplit || summary.round !== beforeRound) capture?.nextRound();
-    else {
+    if (summary.shoe !== beforeShoe || summary.round !== beforeRound) {
+      capture?.restoreRound();
+    } else {
       for (const row of before) {
         if (row.hand === 0 && !current.some(next => samePlace(next, row)) && !isTombstone(row.seat, row.hand, row.slot)) {
           capture?.reopen(row.seat, row.slot);
         }
       }
+      for (const seat of splitBefore) if (!splitSeat(seat)) capture?.unsuppressSeat(seat);
     }
     syncLocks();
   }

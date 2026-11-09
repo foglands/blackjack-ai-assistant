@@ -23,6 +23,11 @@
   const autoClearDuration = 1000;
   const clearFrameGap = 420;
 
+  function isTableClear(recognition, frame) {
+    const presence = recognition.visibleOpeningSlots(frame);
+    return presence.visible === 0 && presence.checked >= 2 && !recognition.hasMappedCard(frame);
+  }
+
   function makeMap(bounds, profile, rect, width, height) {
     const columns = new Int32Array(bounds.width);
     const rows = new Int32Array(bounds.height);
@@ -104,7 +109,7 @@
     const publicModel = root.BlackjackPublicGlyphs;
     const publicGlyphsAvailable = Boolean(publicModel?.templates && Object.keys(publicModel.templates).length);
     const referenceProfile = root.BlackjackLiveProfile.forCapture(root.BlackjackRecognitionProfile, bank.augment);
-    const closeProfile = root.BlackjackLiveProfile.forCloseCapture(referenceProfile, publicModel?.templates?.['10']);
+    const closeProfile = root.BlackjackLiveProfile.forCloseCapture(referenceProfile, bank.augment, publicModel?.templates?.['10']);
     let profile, recognition, sampled;
     const sharedGlyphs = bank.load();
     const { presets, selected } = loadPresets();
@@ -614,14 +619,20 @@
     }
 
     function reopen(seat, slot) {
-      if (suppressed.has(seat)) return;
-      recognition.reopen(seat, slot);
       locks.delete(`${seat}:${slot}`);
+      if (!suppressed.has(seat)) recognition.reopen(seat, slot);
     }
 
     function suppressSeat(seat) {
       suppressed.add(seat);
       profile.slots.filter(slot => slot.seat === seat).forEach(slot => recognition.setManual(seat, slot.slot));
+    }
+
+    function unsuppressSeat(seat) {
+      if (!suppressed.delete(seat)) return;
+      for (const slot of profile.slots) {
+        if (slot.seat === seat && !locks.has(`${seat}:${slot.slot}`)) recognition.reopen(seat, slot.slot);
+      }
     }
 
     function nextRound() {
@@ -632,6 +643,17 @@
         clearAt = null;
         onStatus({ state: 'waiting', message: '等旧牌从画面清走后，再开始识别下一局。' });
       } else clearScan();
+    }
+
+    function restoreRound() {
+      if (!waitingForClear) {
+        clearScan();
+        return;
+      }
+      // Undo can restore the round that is still on screen. Keep its tracked positions.
+      waitingForClear = false;
+      clearAt = null;
+      onStatus({ state: 'capturing', message: '已恢复本局识牌。' });
     }
 
     function startShoe(mode) {
@@ -670,9 +692,7 @@
       lastSampleAt = now;
       // A missed dealer hole card must not leave the last round's slots locked.
       if (waitingForClear || locks.size) {
-        const presence = recognition.visibleOpeningSlots(sampled);
-        const empty = presence.visible === 0 && (waitingForClear ||
-          (presence.checked >= 2 && !recognition.hasMappedCard(sampled)));
+        const empty = waitingForClear ? recognition.visibleOpeningSlots(sampled).visible === 0 : isTableClear(recognition, sampled);
         clearAt = empty ? clearAt ?? now : null;
         const duration = waitingForClear ? clearDuration : autoClearDuration;
         if (clearAt !== null && now - clearAt >= duration) {
@@ -831,13 +851,13 @@
     host?.addEventListener('message', message);
     host?.addEventListener('sharedbufferreceived', shared);
     root.addEventListener?.('pagehide', stop);
-    return { choose, chooseSystem, canChooseSystem, stop, pause, resume, setCrop, beginAlignment, nextRound, startShoe,
-      lock, reopen, suppressSeat, learn, drawPreview, getGuide, setSeatAnchor, clearSeatAnchors,
+    return { choose, chooseSystem, canChooseSystem, stop, pause, resume, setCrop, beginAlignment, nextRound, restoreRound, startShoe,
+      lock, reopen, suppressSeat, unsuppressSeat, learn, drawPreview, getGuide, setSeatAnchor, clearSeatAnchors,
       getCrop, listLayouts, layoutStatus, newLayout, selectLayout, saveLayout: savePreset, removeSeatAnchor, setLayoutSeatCount,
       setLayoutPublicGlyphs };
   }
 
-  const api = { create, makeMap, extract, autoClearDuration, clearFrameGap };
+  const api = { create, makeMap, extract, isTableClear, autoClearDuration, clearFrameGap };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.BlackjackLiveCapture = api;
 }(globalThis));

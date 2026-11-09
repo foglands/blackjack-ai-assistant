@@ -194,8 +194,7 @@ function simulation(profile, metadata, options) {
     if (lastSample === null || seconds - lastSample > capture.clearFrameGap / 1000) clearAt = null;
     lastSample = seconds;
     if (options.roundMode === 'auto' && hasLockedCard) {
-      const presence = recognizer.visibleOpeningSlots(frame);
-      const empty = presence.visible === 0 && presence.checked >= 2 && !recognizer.hasMappedCard(frame);
+      const empty = capture.isTableClear(recognizer, frame);
       clearAt = empty ? clearAt ?? seconds : null;
       if (clearAt !== null && seconds - clearAt >= capture.autoClearDuration / 1000 - 1e-9) {
         reset(seconds, 'auto');

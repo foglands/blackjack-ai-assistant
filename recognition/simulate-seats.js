@@ -232,11 +232,46 @@ function runSpecialCases() {
   return { unreadPredecessor: true, explicitEmptyReopen: true, gapRejectsPending: true, affineAnchorWithLocalDrift: true };
 }
 
+function runUndoCases() {
+  const record = (events, state = observer.create()) => events.reduce(observer.apply, state);
+  const undo = state => observer.apply(state, { type: 'undo' });
+  const splitWithLaterAuto = hand => record([
+    { type: 'mySeat', seat: 3 },
+    { type: 'card', seat: 1, slot: 1, rank: '8' },
+    { type: 'card', seat: 1, slot: 2, rank: '8', source: 'auto' },
+    { type: 'split', seat: 1 },
+    { type: 'card', seat: 1, hand, slot: 2, rank: '3', source: 'auto' },
+  ]);
+  for (const hand of [0, 1]) {
+    const split = splitWithLaterAuto(hand);
+    assert.equal(observer.summary(split).canUndo, true);
+    const undone = undo(split);
+    assert.equal(observer.summary(undone).mySeat, 4, 'Undo skips edits needed by the split');
+    assert.deepEqual(observer.rows(undone), observer.rows(split), 'Undo preserves all cards from both hands');
+    assert.equal(observer.summary(undone).canUndo, false);
+    assert.equal(undo(undone), undone);
+  }
+
+  const complete = observer.create({ mode: 'complete' });
+  const fullRank = record(Array.from({ length: 32 }, (_, index) => ({
+    type: 'card', source: 'auto', seat: index < 16 ? 1 : 2, slot: index % 16 + 1, rank: '8',
+  })), complete);
+  const corrected = record([{ type: 'card', seat: 1, slot: 1, rank: '9' }], fullRank);
+  assert.deepEqual(observer.rows(undo(corrected)), observer.rows(fullRank), 'Undo restores an unconflicted correction');
+  const refilled = record([{ type: 'card', source: 'auto', seat: 3, slot: 1, rank: '8' }], corrected);
+  assert.equal(observer.summary(refilled).canUndo, false, 'Undo cannot create a 33rd copy of a rank');
+  assert.equal(undo(refilled), refilled);
+  assert.equal(observer.summary(refilled).counts[observer.ranks.indexOf('8')], 0);
+  return { dependentSplitUndo: true, rankCapacityUndo: true };
+}
+
 const occupancy = runOccupancy();
 console.log(JSON.stringify({ occupancy }, null, 2));
 assert.equal(occupancy.missed + occupancy.falsePositives + occupancy.duplicates + occupancy.openingMismatches + occupancy.unreadOpenings, 0);
 console.log(JSON.stringify({ specialCases: runSpecialCases() }, null, 2));
+console.log(JSON.stringify({ undoCases: runUndoCases() }, null, 2));
 const varied = runOccupancy(true);
 const { failures, ...stress } = varied;
 console.log(JSON.stringify({ variedRankStress: stress }, null, 2));
-assert.equal(varied.falsePositives + varied.duplicates + varied.openingMismatches, 0, JSON.stringify(failures));
+assert.equal(varied.missed + varied.falsePositives + varied.duplicates + varied.openingMismatches + varied.unreadOpenings,
+  0, JSON.stringify(failures));

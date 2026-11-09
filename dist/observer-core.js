@@ -14,6 +14,7 @@
   const biasLimit = 0.30;
   const seatOrder = 'screen-right-1';
   const projections = new WeakMap();
+  const undoResults = new WeakMap();
 
   function modeValue(mode) {
     if (!modes.includes(mode)) throw new Error('请选择完整牌靴或中途加入。');
@@ -240,23 +241,38 @@
     }
   }
 
-  function undoIndex(journal) {
-    return journal.findLastIndex((event, index) => {
-      if (event.source === 'auto') return false;
+  function replayUndo(state) {
+    const { journal } = state;
+    for (let index = journal.length - 1; index >= 0; index--) {
+      const event = journal[index];
+      if (event.source === 'auto') continue;
       const later = journal.slice(index + 1);
-      if (event.type === 'round' && later.some(item => item.round > event.round)) return false;
-      if (event.type === 'split' && later.some(item => item.round === event.round && item.seat === event.seat && item.hand === 1)) return false;
-      return true;
-    });
+      if (event.type === 'round' && later.some(item => item.round > event.round)) continue;
+      if (event.type === 'split' && later.some(item => item.round === event.round && item.seat === event.seat && item.hand === 1)) continue;
+      const kept = journal.filter((_, position) => position !== index);
+      let previous = fresh(state.origin, state.undoShoe);
+      try {
+        for (const item of kept) {
+          const next = change(previous, item);
+          if (next === previous && item.source === 'auto') {
+            previous = null;
+            break;
+          }
+          previous = next;
+        }
+      } catch {
+        // Removing this edit would invalidate a later action, such as splitting a pair.
+        continue;
+      }
+      if (previous) return { ...previous, journal: kept };
+    }
+    return state;
   }
 
   function undo(state) {
     if (!state.journal.length) return state.undoShoe ?? state;
-    const index = undoIndex(state.journal);
-    if (index < 0) return state;
-    const journal = state.journal.filter((_, position) => position !== index);
-    const previous = journal.reduce(change, fresh(state.origin, state.undoShoe));
-    return { ...previous, journal };
+    if (!undoResults.has(state)) undoResults.set(state, replayUndo(state));
+    return undoResults.get(state);
   }
 
   function apply(state, event) {
@@ -468,7 +484,7 @@
       remaining: state.mode === 'complete' ? unseen : null,
       running,
       trueCount: state.mode === 'complete' && unseen > 0 ? running * 52 / unseen : null,
-      canUndo: state.journal.length ? undoIndex(state.journal) >= 0 : Boolean(state.undoShoe),
+      canUndo: undo(state) !== state,
       lastPrediction: lastPrediction && { ...lastPrediction },
       metrics: {
         ...metricsFor(mergeScores(scores.complete, scores.mid)),

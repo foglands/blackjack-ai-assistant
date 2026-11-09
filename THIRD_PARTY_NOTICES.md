@@ -1,6 +1,6 @@
 # Third-party notices
 
-`recognition/public-rank-samples.json` contains grayscale rank crops from the sources below. `dist/public-trained-glyphs.js` contains rank templates generated from the dataset. The compact primary bank in `dist/recognition-profile.js` uses a subset of these masks and a rotated variant. The optional fallback uses the full bank and additional confirmation.
+`recognition/public-rank-samples.json` contains grayscale rank crops from the sources below. `dist/public-trained-glyphs.js` contains rank templates generated from the dataset. The Classic presets have a separately calibrated rank bank. The close preset also uses public templates for the two-character 10, and the optional public fallback uses the full public bank with additional confirmation.
 
 | Source | Credit and license |
 | --- | --- |

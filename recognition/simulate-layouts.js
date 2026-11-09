@@ -143,9 +143,9 @@ function assertProfile(profile, config) {
   }
 }
 
-function assertCard(harness, config, width, height, seat, invert = false, publicRank = null) {
+function cardFrame(harness, config, width, height, seat, invert, publicRank, number) {
   const profile = harness.profiles.at(-1);
-  const region = profile.slots.find(slot => slot.seat === seat && slot.slot === 1);
+  const region = profile.slots.find(slot => slot.seat === seat && slot.slot === number);
   const frame = new Uint8Array(width * height * 4);
   frame.fill(120);
   const crop = config.crop;
@@ -167,6 +167,11 @@ function assertCard(harness, config, width, height, seat, invert = false, public
       if (row & (1 << (15 - dx))) gray(x + dx - 8, y + dy - 10, invert ? 238 : 17);
     }
   });
+  return { frame, region, rank };
+}
+
+function assertCard(harness, config, width, height, seat, invert = false, publicRank = null, number = 1) {
+  const { frame, region, rank } = cardFrame(harness, config, width, height, seat, invert, publicRank, number);
   harness.frame(width, height, frame);
   assert.equal(harness.received.at(-1).events.length, 0, 'unstable frame must not emit an event');
   harness.frame(width, height, frame);
@@ -174,7 +179,7 @@ function assertCard(harness, config, width, height, seat, invert = false, public
     assert.equal(harness.received.at(-1).events.length, 0, 'public match requires a third frame');
     harness.frame(width, height, frame);
   }
-  assert.deepEqual(harness.received.at(-1).events.map(event => [event.seat, event.slot, event.rank]), [[seat, 1, rank]],
+  assert.deepEqual(harness.received.at(-1).events.map(event => [event.seat, event.slot, event.rank]), [[seat, number, rank]],
     `synthetic glyph: ${JSON.stringify(region)} ${JSON.stringify(harness.received.at(-1).diagnostics)}`);
   assert.equal(harness.received.at(-1).events[0].templateSource, publicRank ? 'fallback' : undefined);
   assert.equal(harness.received.at(-1).diagnostics.opening.length, config.seatCount ?? 7);
@@ -300,6 +305,8 @@ const rollover = createHarness();
 const rolloverLayout = { name: 'Synthetic rollover', crop: full, points: [
   [0, 1, { x: 0.58, y: 0.56, width: 0.07, height: 0.08 }],
   [1, 1, { x: 0.76, y: 0.76, width: 0.07, height: 0.08 }],
+  [1, 2, { x: 0.76, y: 0.64 }],
+  [1, 3, { x: 0.76, y: 0.52 }],
   [2, 1, { x: 0.28, y: 0.75, width: 0.07, height: 0.08 }],
 ] };
 rollover.open(600, 400, 'Synthetic rollover window');
@@ -317,6 +324,17 @@ assert.equal(rollover.received.some(frame => frame.roundClear), false, 'capture 
 for (let i = 0; i < 20; i++) rollover.frame(600, 400, emptyFrame);
 assert.equal(rollover.received.filter(frame => frame.roundClear).length, 1, 'advance after clearing even when dealer hole was missed');
 assertCard(rollover, rolloverLayout, 600, 400, 1);
+
+const beforeSplit = rollover.received.length;
+rollover.api.lock(1, 2);
+rollover.api.suppressSeat(1);
+const splitHit = cardFrame(rollover, rolloverLayout, 600, 400, 1, false, null, 3).frame;
+for (let i = 0; i < 4; i++) rollover.frame(600, 400, splitHit);
+rollover.api.unsuppressSeat(1);
+const retainedCard = cardFrame(rollover, rolloverLayout, 600, 400, 1, false, null, 2).frame;
+for (let i = 0; i < 4; i++) rollover.frame(600, 400, retainedCard);
+assert.deepEqual(rollover.received.slice(beforeSplit).flatMap(frame => frame.events), [], 'split stays manual and undo retains prior locks');
+assertCard(rollover, rolloverLayout, 600, 400, 1, false, null, 3);
 
 const moving = createHarness();
 const width = 2328, height = 1302;
@@ -351,6 +369,13 @@ for (let i = 0; i < 7; i++) moving.frame(width, height, firstMoved);
 const firstGuide = moving.api.getGuide().find(box => box.seat === 4);
 assert.equal(firstGuide.tracked, true, 'guide follows the observed opening card');
 assert.deepEqual(moving.received.flatMap(frame => frame.events).map(event => event.seat).sort(), [4, 5]);
+
+moving.api.nextRound();
+assert.equal(moving.statuses.at(-1).state, 'waiting', 'manual advance waits while old cards are visible');
+moving.api.restoreRound();
+assert.equal(moving.statuses.at(-1).state, 'capturing', 'undo resumes the current physical round');
+assert.deepEqual(moving.api.getGuide().find(box => box.seat === 4), firstGuide, 'undo preserves measured opening positions');
+
 const markedFelt = clean.slice();
 const nominal = movingProfile.slots.find(slot => slot.seat === 4 && slot.slot === 1);
 for (let y = Math.round(nominal.y) - 5; y <= Math.round(nominal.y) + 5; y++) {

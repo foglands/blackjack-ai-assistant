@@ -14,7 +14,7 @@ python -m http.server 8000 --bind 127.0.0.1 --directory dist
 | --- | --- |
 | [`/trainer.html`](http://127.0.0.1:8000/trainer.html) | Play with virtual chips, review decisions, or train and compare policies. |
 | [`/index.html`](http://127.0.0.1:8000/index.html) | Enter a table state by hand and compare expected returns for legal actions. |
-| [`/recognition.html`](http://127.0.0.1:8000/recognition.html) | Select a local video and step through recognized card events. |
+| [`/recognition.html`](http://127.0.0.1:8000/recognition.html) | Replay a local video, review and correct cards by round, and export events. |
 | [`/glyph-training.html`](http://127.0.0.1:8000/glyph-training.html) | Label or review rank samples and manage the local template bank. |
 | [`/live.html`](http://127.0.0.1:8000/live.html) | Use the observer and manual ledger. Compatible browsers can share a selected window after permission is granted. The Windows host offers native capture. |
 
@@ -38,7 +38,7 @@ Policy comparisons use seeded simulations and report return per initial bet and 
 
 ### Rank recognition and glyph training
 
-The recognition trainer is a separate workflow. Choose a local recording, freeze a frame, select a rank crop, apply any perspective correction, and verify the label before saving it to the local bank. Use the replay and observer views to inspect recognized cards and correct incorrect or missing events. For a new layout, define the table crop and mark actual seat and card positions before relying on recognition.
+The recognition trainer is a separate workflow. Choose a local recording, freeze a frame, select a rank crop, apply any perspective correction, and verify the label before saving it to the local bank. Enable local glyph samples in the replay view to test the saved ranks. Continuous replay detects table clearance, keeps each round's corrections separate, and includes round IDs in CSV exports. For a new layout, define the table crop and mark actual seat and card positions before relying on recognition.
 
 The JavaScript tools can also learn templates from labelled frames and evaluate them on a separate recording. The held-out evaluator compares predicted card positions and ranks with annotations and rejects a video hash already recorded as a training input. The project uses template matching for vision and tabular reinforcement learning for the decision policy.
 
@@ -69,7 +69,7 @@ The import uses an attributed public reference bank and a synthetic video. The r
 
 | Check on the included source | Observed result |
 | --- | --- |
-| Synthetic seat occupancy | 1,023 of 1,023 expected events across 128 configurations, with zero false events or duplicates. Varied-rank stress detected 991 of 1,023, with zero false events or duplicates. |
+| Synthetic seat occupancy | The standard and varied-rank runs each matched 1,023 of 1,023 events across 128 configurations, with zero false events or duplicates. |
 | Layout integration | Passed landscape and nine-seat portrait mappings at two resolutions, including fallback confirmation and dealer-hole handling. |
 | Procedural video | 787 frames and 12 supported positions in the final round. The baseline and calibrated run each matched six. The baseline had zero false detections and the calibrated run had one. One dealer position was outside the supported layout. |
 | Public glyph evaluation | The fallback recognized 108 of 208 same-design, 52 of 104 unseen-design and 50 of 104 photographed hold-out examples, with zero wrong classifications on these sets. It rejected all 60 non-rank negatives. |

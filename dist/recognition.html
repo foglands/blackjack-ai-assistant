@@ -18,6 +18,7 @@
     .recognition-controls input::file-selector-button { margin-right: 8px; min-height: 34px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); color: var(--text); cursor: pointer; }
     .recognition-controls .setting { display: flex; margin: 0; align-items: center; gap: 6px; }
     .recognition-controls .setting select { width: auto; }
+    .recognition-controls .replay-check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-strong); font-size: 13px; }
     #replay-start-time { width: 6.5em; min-height: 34px; padding: 5px 8px; }
     .recognition-status { padding: 0 14px 11px; }
     .recognition-details { display: grid; gap: 8px; margin: 0; font-size: 13px; }
@@ -26,16 +27,19 @@
     .recognition-details dd { margin: 0; font: 650 13px/1.5 ui-monospace, Consolas, monospace; text-align: right; }
     .recognition-caption { max-width: 82ch; }
     .event-scroll { max-height: 440px; overflow: auto; }
-    .recognition-events { width: 100%; min-width: 635px; border-collapse: collapse; font-size: 13px; text-align: left; }
+    .recognition-events { width: 100%; min-width: 690px; border-collapse: collapse; font-size: 13px; text-align: left; }
     .recognition-events th, .recognition-events td { padding: 8px 14px; border-top: 1px solid var(--line); white-space: nowrap; }
     .recognition-events th { position: sticky; top: 0; background: var(--surface-raised); color: var(--muted-strong); font-size: 11px; }
-    .recognition-events td:first-child, .recognition-events td:nth-child(3), .recognition-events td:nth-child(4), .recognition-events td:nth-child(5) { font-family: ui-monospace, Consolas, monospace; }
+    .recognition-events td:first-child, .recognition-events td:nth-child(4), .recognition-events td:nth-child(5), .recognition-events td:nth-child(6) { font-family: ui-monospace, Consolas, monospace; }
     .recognition-events .event-empty { color: var(--muted); white-space: normal; }
     .recognition-events .event-kind { color: var(--mint); }
     .recognition-events tr.is-target td { background: #203a35; }
     .recognition-manual { margin: 0 11px 11px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); }
     .recognition-target { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 14px; margin-top: 8px; }
     .recognition-target .setting { min-width: 90px; margin: 0; }
+    .recognition-target .setting[hidden] { display: none; }
+    .replay-log-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .replay-log-actions .setting { margin: 0; }
     @media (max-width: 560px) { .recognition-events th, .recognition-events td { padding-inline: 8px; } }
   </style>
   <script defer src="recognition-profile.js"></script>
@@ -43,6 +47,7 @@
   <script defer src="public-trained-glyphs.js"></script>
   <script defer src="live-recognition-profile.js"></script>
   <script defer src="recognition-engine.js"></script>
+  <script defer src="live-capture.js"></script>
   <script defer src="recognition-ui.js"></script>
 </head>
 <body>
@@ -73,7 +78,9 @@
         <div class="recognition-controls">
           <input type="file" id="recording-file" accept="video/*,.mp4,.webm,.mov" aria-label="选择本地录像">
           <label class="setting"><span>识牌布局</span><select id="replay-layout"><option value="classic">Classic 参考</option><option value="classic-close">Classic 近景校准</option></select></label>
-          <label class="setting"><span>单局起点（秒）</span><input id="replay-start-time" type="number" min="0" step="0.1" value="0" disabled></label>
+          <label class="setting"><span>识别范围</span><select id="replay-round-mode"><option value="auto">连续多局</option><option value="single">仅本局</option></select></label>
+          <label class="replay-check"><input type="checkbox" id="replay-learned-glyphs"> 使用本机字形样本</label>
+          <label class="setting"><span>录像起点（秒）</span><input id="replay-start-time" type="number" min="0" step="any" value="0" disabled></label>
           <label class="setting"><span>速度</span><select id="replay-rate"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option></select></label>
           <button type="button" class="button accent" id="play-recognition" disabled>开始识别</button>
           <button type="button" class="button compact" id="restart-recognition" disabled>从起点重扫</button>
@@ -86,44 +93,47 @@
         <div class="analysis-body">
           <dl class="recognition-details">
             <div><dt>当前布局</dt><dd id="active-replay-layout">Classic 参考</dd></div>
+            <div><dt>识别进度</dt><dd id="replay-current-round">—</dd></div>
+            <div><dt>已载入本机样本</dt><dd id="replay-glyph-count">—</dd></div>
             <div><dt>样本尺寸</dt><dd id="profile-size">2328 × 1302</dd></div>
             <div><dt>取帧和读取像素</dt><dd id="capture-time">—</dd></div>
-            <div><dt>取帧＋识别 P95</dt><dd id="pipeline-time">—</dd></div>
+            <div><dt>取帧＋识别 P95（最近 1800 帧）</dt><dd id="pipeline-time">—</dd></div>
             <div><dt>呈现帧间隔遗漏</dt><dd id="skipped-frames">—</dd></div>
           </dl>
           <p class="model-note">校准来自一段部分牌局，包含录像开头已摆在桌上的牌。中途入桌时实际剩余深度未知，因此这里显示已识别牌的片段跑数。</p>
           <p class="model-note">事件时间来自录像媒体时间轴，表示稳定读到牌面的时刻。耗时以毫秒计量取帧和识别代码，发牌到识别的延迟需另有人工标注基准。</p>
-          <p class="model-note">录像页按单局记录。长录像请把起点设在发牌前，在下一局发牌前暂停。识牌布局和起点在重扫时应用，录像在本机读取。</p>
+          <p class="model-note">连续多局会在清桌后自动开始下一局，并保留之前的牌。仅本局模式适合单独复查一手，下一局发牌前请暂停。识别范围、布局和字形样本在重扫时应用。</p>
         </div>
       </aside>
     </div>
 
     <section class="panel" aria-labelledby="events-title">
-      <div class="panel-head"><div><p class="eyebrow">DETECTED CARDS</p><h2 id="events-title">识牌记录</h2></div><button type="button" class="button compact" id="export-recognition" disabled>下载 CSV</button></div>
+      <div class="panel-head"><div><p class="eyebrow">DETECTED CARDS</p><h2 id="events-title">识牌记录</h2></div><div class="replay-log-actions"><label class="setting"><span>查看牌局</span><select id="replay-log-round" disabled><option value="current">跟随当前局</option></select></label><button type="button" class="button compact" id="export-recognition" disabled>下载 CSV</button></div></div>
       <div class="recognition-manual" id="replay-manual-entry" aria-label="人工补录和校正">
         <div class="input-header entry-target">
-          <div aria-live="polite"><span class="entry-target-mode" id="manual-mode">录入牌面</span> <strong id="manual-target">座位 4 · 牌位 1</strong></div>
+          <div aria-live="polite"><span class="entry-target-mode" id="manual-mode">录入牌面</span> <strong id="manual-target">第 1 局 · 座位 4 · 牌位 1</strong></div>
           <button type="button" class="button compact" id="manual-next" disabled>录下一张</button>
         </div>
         <div class="entry-seat-keys" id="manual-seat-keys" role="group" aria-label="快捷选择座位"></div>
         <div class="recognition-target">
           <label class="setting"><span>座位</span><select id="manual-seat" disabled><option value="0">庄家</option><option value="1">座位 1</option><option value="2">座位 2</option><option value="3">座位 3</option><option value="4" selected>座位 4</option><option value="5">座位 5</option><option value="6">座位 6</option><option value="7">座位 7</option></select></label>
           <label class="setting"><span>牌位</span><select id="manual-slot" disabled></select></label>
+          <label class="setting" id="manual-time-field" hidden><span>补录的录像时间（秒）</span><input id="manual-time" type="number" min="0" step="any" disabled></label>
         </div>
         <div class="rank-keys" id="manual-ranks" aria-label="选择要录入的牌面"></div>
-        <div class="entry-actions"><button type="button" class="button compact" id="manual-delete" disabled>删除这张</button><button type="button" class="button compact" id="manual-undo" disabled>撤销人工修改</button></div>
+        <div class="entry-actions"><button type="button" class="button compact" id="manual-delete" disabled>删除这张</button><button type="button" class="button compact" id="manual-undo" disabled>撤销本局修改</button></div>
         <p class="feedback" id="manual-status" role="status">开始识别后，可以在播放中或暂停时补录。</p>
         <p class="entry-key-help">点记录里的牌可校正。<kbd>Shift</kbd> + <kbd>1</kbd>–<kbd>7</kbd> 选座位，<kbd>D</kbd> 选庄家，<kbd>T</kbd> 录 10。</p>
         <details class="shortcuts">
           <summary>快捷键与校正说明</summary>
           <p>用 <kbd>A</kbd>、<kbd>2</kbd>–<kbd>9</kbd>、<kbd>T</kbd>、<kbd>J</kbd>、<kbd>Q</kbd>、<kbd>K</kbd> 录牌。<kbd>Esc</kbd> 切回空牌位，<kbd>Delete</kbd> 删除选中的牌，<kbd>Ctrl</kbd> + <kbd>Z</kbd> 撤销最近一次人工修改。</p>
-          <p>补录按当前播放位置记时，校正保留原时间。自动识牌不会覆盖人工改动或移动所选牌位。从起点重扫会重置本次记录。</p>
+          <p>补录当前局按播放位置记时。补录历史局需填写录像时间，校正会保留原时间。CSV 包含全部牌局。自动识牌不会覆盖人工改动，从起点重扫会重置本次记录。</p>
         </details>
       </div>
       <div class="analysis-body recognition-caption"><p class="model-note">开头已有表示录像刚开始时牌已在桌上。新出现表示之后记录到的可见牌位。置信分来自自动识牌的模板匹配。</p></div>
       <div class="event-scroll" tabindex="0" aria-label="可滚动的识牌记录"><table class="recognition-events">
-        <thead><tr><th scope="col">录像时间</th><th scope="col">位置</th><th scope="col">牌位</th><th scope="col">牌面</th><th scope="col">置信分</th><th scope="col">出现方式</th><th scope="col">来源</th><th scope="col">操作</th></tr></thead>
-        <tbody id="recognition-events"><tr><td class="event-empty" colspan="8">还没有识牌记录。</td></tr></tbody>
+        <thead><tr><th scope="col">录像时间</th><th scope="col">局</th><th scope="col">位置</th><th scope="col">牌位</th><th scope="col">牌面</th><th scope="col">置信分</th><th scope="col">出现方式</th><th scope="col">来源</th><th scope="col">操作</th></tr></thead>
+        <tbody id="recognition-events"><tr><td class="event-empty" colspan="9">还没有识牌记录。</td></tr></tbody>
       </table></div>
     </section>
   </main>
